@@ -40,7 +40,7 @@ public class TeacherEntity {
     private String phone;
 
     // Sử dụng @Lob hoặc columnDefinition = "TEXT" cho kiểu dữ liệu TEXT lớn
-    @Lob
+
     @Column(name = "Bio", columnDefinition = "TEXT")
     private String bio;
 
