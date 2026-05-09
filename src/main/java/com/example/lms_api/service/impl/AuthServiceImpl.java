@@ -47,8 +47,8 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenRepository.deleteAllByUser(user);
 
         // Tạo tokens
-        String accessToken  = jwtUtil.generateAccessToken(user.getId(), user.getUsername(), user.getRole().name());
-        String refreshToken = jwtUtil.generateRefreshToken(user.getId());
+        String accessToken  = jwtUtil.generateAccessToken(user.getId().toString(), user.getUsername(), user.getRole().name());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getId().toString());
 
         // Lưu refresh token vào Neon DB
         refreshTokenRepository.save(RefreshTokenEntity.builder()
@@ -62,8 +62,9 @@ public class AuthServiceImpl implements AuthService {
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
                 .userId(user.getId())
-                .fullName(user.getFullName())
+                .email(user.getEmail())
                 .role(user.getRole().name())
+                .isActive(user.isActive())
                 .build();
     }
 
@@ -81,14 +82,15 @@ public class AuthServiceImpl implements AuthService {
         }
 
         UserEntity user = storedToken.getUser();
-        String newAccessToken = jwtUtil.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name());
+        String newAccessToken = jwtUtil.generateAccessToken(user.getId().toString(), user.getEmail(), user.getRole().name());
 
         return AuthResponse.builder()
                 .accessToken(newAccessToken)
                 .refreshToken(request.getRefreshToken())
                 .tokenType("Bearer")
                 .userId(user.getId())
-                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .isActive(user.isActive())
                 .role(user.getRole().name())
                 .build();
     }
