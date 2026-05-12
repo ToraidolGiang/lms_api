@@ -29,5 +29,12 @@ public class GlobalExceptionHandler {
                 .findFirst().orElse("Validation error");
         return ResponseEntity.badRequest().body(Map.of("error", msg));
     }
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<?> handleRuntimeException(RuntimeException ex) {
+        // Trả về JSON chứa thông báo lỗi và mã lỗi 404 hoặc 400 tùy bạn chọn
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", ex.getMessage()));
+    }
 }
 
