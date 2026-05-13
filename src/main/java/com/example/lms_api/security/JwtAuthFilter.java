@@ -42,10 +42,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        String userId = jwtUtil.extractUserId(token);
+        // 1. Đổi thành gọi hàm extractUsername vừa tạo
+        String username = jwtUtil.extractUsername(token);
 
-        if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(userId);
+        // 2. Đổi biến userId thành username
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+
+            // 3. Truyền username vào hàm loadUserByUsername
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
             UsernamePasswordAuthenticationToken authToken =
                     new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());

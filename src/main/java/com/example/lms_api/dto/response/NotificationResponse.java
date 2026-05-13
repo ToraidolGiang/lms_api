@@ -1,15 +1,21 @@
 package com.example.lms_api.dto.response;
 
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
 @Builder
 public class NotificationResponse {
-    private Long id;
+    private String id;
     private String title;
-    private String body;
+    // Sửa thuộc tính body thành message, thêm link
+    private String message;
+    private String link;
     private String type;
     private boolean isRead;
-    private String createdAt; // Format ISO string hoặc yyyy-MM-dd HH:mm:ss
+    private LocalDateTime createdAt;
 }

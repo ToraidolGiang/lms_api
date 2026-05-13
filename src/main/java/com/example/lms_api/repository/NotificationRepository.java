@@ -1,12 +1,14 @@
 package com.example.lms_api.repository;
 
-import com.example.lms_api.entity.Notification;
-import org.springframework.data.jpa.repository.JpaRepository;
+import com.example.lms_api.entity.NotificationEntity;
+import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
-public interface NotificationRepository extends JpaRepository<Notification, Long> {
-    List<Notification>
-    findByUserIdOrderByCreatedAtDesc(Long userId);
-}
+@Repository
+public interface NotificationRepository extends MongoRepository<NotificationEntity, String> {
 
+    // Spring Data MongoDB tự động hiểu và chuyển thành query tìm theo userId
+    List<NotificationEntity> findByUserIdOrderByCreatedAtDesc(String userId);
+}
