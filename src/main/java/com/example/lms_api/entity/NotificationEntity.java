@@ -1,5 +1,6 @@
 package com.example.lms_api.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -24,7 +25,10 @@ public class NotificationEntity { // Nên đổi tên thành NotificationDocumen
     private String type;
     private String link;    // Thêm trường link theo JSON của bạn
 
-    private boolean isRead = false;
+    @JsonProperty("isRead")
+    @Builder.Default
+    private boolean read = false;
 
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 }

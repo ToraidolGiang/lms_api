@@ -10,7 +10,7 @@ import org.mapstruct.Mapping;
 public interface NotificationMapper {
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "isRead", constant = "false")
+    @Mapping(target = "read", constant = "false")
     @Mapping(target = "createdAt", expression = "java(java.time.LocalDateTime.now())")
     // Map targetUserId từ Request thẳng vào trường userId của Document
     @Mapping(source = "targetUserId", target = "userId")
