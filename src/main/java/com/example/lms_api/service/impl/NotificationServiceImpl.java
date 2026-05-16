@@ -66,5 +66,6 @@ public class NotificationServiceImpl implements NotificationService {
 
         notification.setRead(true);
         notificationRepository.save(notification);
+        System.out.println("DEBUG: Notification marked as read: " + notificationId);
     }
 }

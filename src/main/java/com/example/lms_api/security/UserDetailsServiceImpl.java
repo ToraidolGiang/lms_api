@@ -11,7 +11,8 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class UserDetailsServiceImpl implements UserDetailsService {
+public class
+UserDetailsServiceImpl implements UserDetailsService {
 
     private final UserRepository userRepository;
 
