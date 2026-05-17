@@ -11,7 +11,9 @@ import java.time.LocalDate;
 import java.util.Optional;
 
 public interface TeacherRepository extends JpaRepository<TeacherEntity,String> {
-    Optional<TeacherEntity> findByTeacherId(Integer teacherId);
+
+    @Query("SELECT t FROM TeacherEntity t WHERE t.user.id = :teacherId")
+    Optional<TeacherEntity> findByTeacherId(@Param("teacherId") Integer teacherId);
     // Thêm hàm update
     @Modifying
     @Query("UPDATE TeacherEntity t SET t.firstName = :firstName, t.lastName = :lastName, " +
