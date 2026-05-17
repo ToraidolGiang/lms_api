@@ -42,17 +42,19 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        String userId = jwtUtil.extractUserId(token);
+        String userId = jwtUtil.extractUserId(token);      // subject
+        String username = jwtUtil.extractUsername(token);  // claim
 
-        if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(userId);
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
             UsernamePasswordAuthenticationToken authToken =
-                    new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    new UsernamePasswordAuthenticationToken(userId, null, userDetails.getAuthorities());
             authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
             SecurityContextHolder.getContext().setAuthentication(authToken);
         }
+
 
         chain.doFilter(request, response);
     }

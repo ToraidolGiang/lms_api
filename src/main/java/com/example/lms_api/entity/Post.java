@@ -37,6 +37,7 @@ public class Post {
     private String userId;
 
     private String authorName;
+    private String authorRole;
 
     @Field("createdAt")
     private Instant createdAt;

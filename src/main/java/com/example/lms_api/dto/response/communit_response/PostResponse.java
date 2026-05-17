@@ -1,4 +1,4 @@
-package com.example.lms_api.dto.response;
+package com.example.lms_api.dto.response.communit_response;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -33,13 +33,16 @@ public class PostResponse {
 
     private String authorName;
 
+    private String authorRole;
+
+
     public PostResponse() {
     }
 
     public PostResponse(String id, String title, String content, String category, String type,
                         int views, int likes, int commentsCount,
                         Instant createdAt, Instant updatedAt,
-                        String userId, String authorName) {
+                        String userId, String authorName,String authorRole) {
         this.id = id;
         this.title = title;
         this.content = content;
@@ -52,6 +55,7 @@ public class PostResponse {
         this.updatedAt = updatedAt;
         this.userId = userId;
         this.authorName = authorName;
+        this.authorRole = authorRole;
     }
 
 }

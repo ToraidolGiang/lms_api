@@ -59,6 +59,10 @@ public class JwtUtil {
         return extractClaims(token).getSubject();
     }
 
+    public String extractUsername(String token) {
+        return extractClaims(token).get("username", String.class);
+    }
+
     public boolean isTokenValid(String token) {
         try {
             extractClaims(token);

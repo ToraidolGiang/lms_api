@@ -1,15 +1,29 @@
 package com.example.lms_api.repository;
 
 import com.example.lms_api.entity.Post;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
-
-import java.util.List;
+import org.springframework.data.mongodb.repository.Query;
 
 public interface PostRepository extends MongoRepository<Post, String> {
 
-    List<Post> findAllByOrderByCreatedAtDesc();
+    // List thường (paging)
+    Page<Post> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
-    List<Post> findByCategoryIgnoreCaseOrderByCreatedAtDesc(String category);
+    Page<Post> findByCategoryIgnoreCaseOrderByCreatedAtDesc(String category, Pageable pageable);
 
-    List<Post> findByTypeIgnoreCaseOrderByCreatedAtDesc(String type);
+    // Search theo title OR content (regex, case-insensitive)
+    @Query("{ '$or': [ " +
+            "{ 'title':   { '$regex': ?0, '$options': 'i' } }, " +
+            "{ 'content': { '$regex': ?0, '$options': 'i' } } " +
+            "] }")
+    Page<Post> findBySearchQuery(String regex, Pageable pageable);
+
+    // Search kết hợp category + (title OR content)
+    @Query("{ 'category': ?0, '$or': [ " +
+            "{ 'title':   { '$regex': ?1, '$options': 'i' } }, " +
+            "{ 'content': { '$regex': ?1, '$options': 'i' } } " +
+            "] }")
+    Page<Post> findByCategoryAndSearchQuery(String category, String regex, Pageable pageable);
 }

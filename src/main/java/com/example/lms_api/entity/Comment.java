@@ -9,7 +9,11 @@ import java.time.Instant;
 @Getter
 public class Comment {
 
+    private String commentId; // format: cmt_<uuid>, unique toàn hệ thống
+
     private String userId;
+
+    private String authorName;
 
     private String content;
 
@@ -18,10 +22,11 @@ public class Comment {
     public Comment() {
     }
 
-    public Comment(String userId, String content, Instant createdAt) {
+    public Comment(String commentId, String userId, String authorName, String content, Instant createdAt) {
+        this.commentId = commentId;
         this.userId = userId;
+        this.authorName = authorName;
         this.content = content;
         this.createdAt = createdAt;
     }
-
 }
