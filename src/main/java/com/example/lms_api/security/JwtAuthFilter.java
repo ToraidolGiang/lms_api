@@ -15,7 +15,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-
 @Component
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
@@ -42,19 +41,21 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        String userId = jwtUtil.extractUserId(token);      // subject
-        String username = jwtUtil.extractUsername(token);  // claim
+        // 1. Đổi thành gọi hàm extractUsername vừa tạo
+        String username = jwtUtil.extractUsername(token);
 
+        // 2. Đổi biến userId thành username
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+
+            // 3. Truyền username vào hàm loadUserByUsername
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
             UsernamePasswordAuthenticationToken authToken =
-                    new UsernamePasswordAuthenticationToken(userId, null, userDetails.getAuthorities());
+                    new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
             authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
             SecurityContextHolder.getContext().setAuthentication(authToken);
         }
-
 
         chain.doFilter(request, response);
     }
