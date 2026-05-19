@@ -1,7 +1,7 @@
 package com.example.lms_api.repository;
 
 import com.example.lms_api.entity.RefreshTokenEntity;
-import com.example.lms_api.entity.UserEntity;
+import com.example.lms_api.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -13,5 +13,5 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshTokenEntity
 
     @Modifying
     @Query("DELETE FROM RefreshTokenEntity r WHERE r.user = :user")
-    void deleteAllByUser(UserEntity user);
+    void deleteAllByUser(User user);
 }

@@ -20,7 +20,7 @@ public class CategoryController {
     // 1. [POST] Tạo danh mục mới
     @PostMapping
     public ResponseEntity<CategoryResponse> createCategory(@RequestBody CategoryRequest request) {
-        return new ResponseEntity<>(categoryService.createCategory(request), HttpStatus.CREATED);
+        return ResponseEntity.ok(categoryService.createCategory(request));
     }
 
     // 2. [GET] Lấy toàn bộ danh sách danh mục
@@ -31,8 +31,9 @@ public class CategoryController {
 
     // 3. [GET] Lấy chi tiết 1 danh mục theo ID
     @GetMapping("/{id}")
-    public ResponseEntity<CategoryResponse> getCategoryById(@PathVariable Integer id) {
-        return ResponseEntity.ok(categoryService.getCategoryById(id));
+    public ResponseEntity<CategoryResponse> getCategoryById(@PathVariable("id") Integer id) {
+        CategoryResponse response = categoryService.getCategoryById(id);
+        return ResponseEntity.ok(response);
     }
 
     // 4. [PUT] Cập nhật danh mục
