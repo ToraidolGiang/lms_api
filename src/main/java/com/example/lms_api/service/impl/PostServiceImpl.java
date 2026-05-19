@@ -8,7 +8,7 @@ import com.example.lms_api.dto.response.communit_response.PostDetailResponse;
 import com.example.lms_api.dto.response.communit_response.PostResponse;
 import com.example.lms_api.entity.Comment;
 import com.example.lms_api.entity.Post;
-import com.example.lms_api.entity.UserEntity;
+import com.example.lms_api.entity.User;
 import com.example.lms_api.mapper.PostMapper;
 import com.example.lms_api.repository.PostRepository;
 import com.example.lms_api.repository.UserRepository;
@@ -94,7 +94,7 @@ public class PostServiceImpl implements PostService {
     public PostResponse createPost(CreatePostRequest request, String userId) {
         validateCreatePostRequest(request);
 
-        UserEntity user = findUserByIdString(userId);
+        User user = findUserByIdString(userId);
 
         Instant now = Instant.now();
 
@@ -176,7 +176,7 @@ public class PostServiceImpl implements PostService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng nhập nội dung bình luận");
         }
 
-        UserEntity user = findUserByIdString(currentUserId);
+        User user = findUserByIdString(currentUserId);
 
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bài viết id = " + postId));
@@ -247,10 +247,10 @@ public class PostServiceImpl implements PostService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nội dung không được để trống");
     }
 
-    private UserEntity findUserByIdString(String userId) {
+    private User findUserByIdString(String userId) {
         try {
             Integer uid = Integer.parseInt(userId);
-            return userRepository.findById(uid)
+            return userRepository.findById(String.valueOf(uid))
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found id=" + userId));
         } catch (NumberFormatException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid userId: " + userId);
@@ -267,7 +267,7 @@ public class PostServiceImpl implements PostService {
 
         try {
             Integer uid = Integer.parseInt(uidStr);
-            userRepository.findById(uid).ifPresent(u -> post.setAuthorRole(u.getRole().name()));
+            userRepository.findById(String.valueOf(uid)).ifPresent(u -> post.setAuthorRole(u.getRole().name()));
         } catch (NumberFormatException ignore) {
         }
     }

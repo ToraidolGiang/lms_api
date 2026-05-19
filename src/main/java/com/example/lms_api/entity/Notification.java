@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 // Bỏ @Entity và @Table của JPA đi, dùng @Document của MongoDB
 @Document(collection = "notifications")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class NotificationEntity { // Nên đổi tên thành NotificationDocument
+public class Notification { // Nên đổi tên thành NotificationDocument
 
     @Id // Chú ý: import org.springframework.data.annotation.Id; (Không phải của jakarta)
     private String id;

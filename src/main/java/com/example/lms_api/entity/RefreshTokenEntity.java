@@ -19,7 +19,7 @@ public class RefreshTokenEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private UserEntity user;
+    private User user;
 
     @Column(nullable = false)
     private Instant expiresAt;
