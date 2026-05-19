@@ -11,7 +11,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CategoryEntity {
+public class Category {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY) // SERIAL trong PostgreSQL tự động tăng
@@ -23,5 +23,5 @@ public class CategoryEntity {
 
     // Quan hệ 1-N với bảng Courses (Không bắt buộc nhưng nên có để dễ truy vấn ngược)
     @OneToMany(mappedBy = "category", fetch = FetchType.LAZY)
-    private List<CourseEntity> courses;
+    private List<Course> courses;
 }

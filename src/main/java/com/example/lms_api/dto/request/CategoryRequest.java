@@ -6,6 +6,7 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+
 public class CategoryRequest {
     private String categoryName;
 }

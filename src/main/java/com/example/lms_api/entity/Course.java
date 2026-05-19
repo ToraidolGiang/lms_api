@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CourseEntity {
+public class Course {
 
     @Id
     // Nếu trong DB bạn có cấu cụ thể cho CourseID tự tăng thì thêm @GeneratedValue,
@@ -56,10 +56,10 @@ public class CourseEntity {
     // Mối quan hệ Nhiều - Một với bảng Category
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "CategoryID")
-    private CategoryEntity category;
+    private Category category;
 
     // Mối quan hệ Nhiều - Một với bảng Teacher (Thay vì UserEntity như bản nháp của bạn)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "TeacherID")
-    private TeacherEntity teacher;
+    private Teacher teacher;
 }

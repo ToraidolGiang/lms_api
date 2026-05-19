@@ -12,7 +12,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TeacherEntity {
+public class Teacher {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY) // Thêm dòng này để tự động tăng
@@ -22,7 +22,7 @@ public class TeacherEntity {
     // Ánh xạ khóa ngoại (Foreign Key) tới UserEntity
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id", referencedColumnName = "id")
-    private UserEntity user;
+    private User user;
 
     @Column(name = "FirstName", length = 50)
     private String firstName;

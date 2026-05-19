@@ -4,8 +4,7 @@ import com.example.lms_api.dto.request.LoginRequest;
 import com.example.lms_api.dto.request.RefreshTokenRequest;
 import com.example.lms_api.dto.response.AuthResponse;
 import com.example.lms_api.entity.RefreshTokenEntity;
-import com.example.lms_api.entity.UserEntity;
-import com.example.lms_api.exception.GlobalExceptionHandler.*;
+import com.example.lms_api.entity.User;
 import com.example.lms_api.exception.InvalidTokenException;
 import com.example.lms_api.repository.RefreshTokenRepository;
 import com.example.lms_api.repository.UserRepository;
@@ -40,7 +39,7 @@ public class AuthServiceImpl implements AuthService {
             throw new BadCredentialsException("Email hoặc mật khẩu không đúng");
         }
 
-        UserEntity user = userRepository.findByUsername(request.getUsername())
+        User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new BadCredentialsException("User not found"));
 
         // Xoá refresh token cũ
@@ -81,7 +80,7 @@ public class AuthServiceImpl implements AuthService {
             throw new InvalidTokenException("Refresh token đã hết hạn, vui lòng đăng nhập lại");
         }
 
-        UserEntity user = storedToken.getUser();
+        User user = storedToken.getUser();
         String newAccessToken = jwtUtil.generateAccessToken(user.getId().toString(), user.getEmail(), user.getRole().name());
 
         return AuthResponse.builder()

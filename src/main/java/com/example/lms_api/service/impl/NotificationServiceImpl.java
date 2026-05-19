@@ -2,8 +2,7 @@ package com.example.lms_api.service.impl;
 
 import com.example.lms_api.dto.request.NotificationRequest;
 import com.example.lms_api.dto.response.NotificationResponse;
-import com.example.lms_api.entity.NotificationEntity;
-import com.example.lms_api.entity.UserEntity;
+import com.example.lms_api.entity.Notification;
 import com.example.lms_api.mapper.NotificationMapper;
 import com.example.lms_api.repository.NotificationRepository;
 import com.example.lms_api.repository.UserRepository;
@@ -33,10 +32,10 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public NotificationResponse createNotification(NotificationRequest request) {
         // Chỉ cần biến Request thành Document (mapper đã tự gán targetUserId vào userId rồi)
-        NotificationEntity document = notificationMapper.toEntity(request);
+        Notification document = notificationMapper.toEntity(request);
 
         // Lưu thẳng vào MongoDB
-        NotificationEntity saved = notificationRepository.save(document);
+        Notification saved = notificationRepository.save(document);
 
         return notificationMapper.toResponse(saved);
     }
@@ -56,7 +55,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Transactional
     public void markAsRead(String notificationId) {
         String currentUserId = getCurrentUserId();
-        NotificationEntity notification = notificationRepository.findById(notificationId)
+        Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy thông báo"));
 
         // BẢO MẬT: Kiểm tra xem thông báo này có đúng là của thằng đang đăng nhập không
