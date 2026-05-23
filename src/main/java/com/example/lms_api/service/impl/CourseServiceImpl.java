@@ -99,4 +99,13 @@ public class CourseServiceImpl implements CourseService {
 
         courseRepository.save(course);
     }
+
+    // ── Lấy tất cả khóa học theo teacherId ──────────────────
+    @Override
+    public List<CourseResponse> getCourseByTeacherId(Integer teacherId) {
+        return courseRepository.findByTeacherTeacherId(teacherId)
+                .stream()
+                .map(courseMapper::toResponse)     // ← dùng mapper
+                .collect(Collectors.toList());
+    }
 }

@@ -34,6 +34,10 @@ public class CourseController {
         return ResponseEntity.ok(courseService.getCourseById(id));
     }
 
+    @GetMapping("teacher/{id}")
+    public ResponseEntity<List<CourseResponse>> getCourseByTeacherId(@PathVariable Integer id) {
+        return ResponseEntity.ok(courseService.getCourseByTeacherId(id));
+    }
     // 4. [PUT] Cập nhật thông tin khóa học
     @PutMapping("/{id}")
     public ResponseEntity<CourseResponse> updateCourse(@PathVariable Integer id, @RequestBody CourseRequest request) {

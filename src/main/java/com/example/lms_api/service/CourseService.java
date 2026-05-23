@@ -12,4 +12,5 @@ public interface CourseService {
     CourseResponse getCourseById(Integer id);
     CourseResponse updateCourse(Integer id, CourseRequest request);
     void deleteCourse(Integer id, String deletedBy, String reason);
+    public List<CourseResponse> getCourseByTeacherId(Integer teacherId);
 }
