@@ -18,4 +18,9 @@ public class CourseResponse {
     private String archiveStatus;
     private String teacherName;  // Trả thêm tên cho tiện hiển thị
     private String categoryName; // Trả thêm tên danh mục
+    /** User hiện tại đã mua/được kích hoạt khóa học hay chưa */
+    private Boolean purchased;
+
+    /** Active | Pending | Suspended | Completed | CourseDeleted (theo Enrollment) */
+    private String accessStatus;
 }

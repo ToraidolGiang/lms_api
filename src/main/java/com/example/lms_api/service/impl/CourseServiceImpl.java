@@ -7,8 +7,12 @@ import com.example.lms_api.entity.Course;
 import com.example.lms_api.mapper.CourseMapper;
 import com.example.lms_api.repository.CategoryRepository;
 import com.example.lms_api.repository.CourseRepository;
+import com.example.lms_api.repository.EnrollmentRepository;
+import com.example.lms_api.repository.StudentRepository;
 import com.example.lms_api.service.CourseService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +26,8 @@ public class CourseServiceImpl implements CourseService {
 
     private final CourseRepository courseRepository;
     private final CategoryRepository categoryRepository;
+    private final StudentRepository studentRepository;
+    private final EnrollmentRepository enrollmentRepository;
     private final CourseMapper courseMapper;             // ← inject mapper
 
     // ── Tạo mới ──────────────────────────────────────────────
@@ -62,7 +68,30 @@ public class CourseServiceImpl implements CourseService {
             throw new RuntimeException("Khóa học này đã bị xóa!");
         }
 
-        return courseMapper.toResponse(course);    // ← dùng mapper
+        CourseResponse response = courseMapper.toResponse(course);
+
+        // Đính kèm trạng thái đã mua cho user hiện tại (nếu có đăng nhập)
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getName() != null) {
+                Integer userId = Integer.parseInt(auth.getName());
+                studentRepository.findByUser_Id(userId).ifPresent(student -> {
+                    boolean purchased = enrollmentRepository.existsByCourse_CourseIdAndStudent_StudentIdAndAccessStatus(
+                            course.getCourseId(), student.getStudentId(), "Active");
+                    response.setPurchased(purchased);
+                    if (purchased) {
+                        response.setAccessStatus("Active");
+                    }
+                });
+            }
+        } catch (Exception ignored) {
+            // Không làm fail API nếu không lấy được user/student
+        }
+
+        if (response.getPurchased() == null) response.setPurchased(false);
+        if (response.getAccessStatus() == null) response.setAccessStatus("Pending");
+
+        return response;
     }
 
     // ── Cập nhật ─────────────────────────────────────────────

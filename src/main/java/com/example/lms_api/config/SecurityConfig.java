@@ -34,6 +34,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/teachers/**").permitAll()
                         .requestMatchers("/api/v1/categories/**").permitAll()
+                        .requestMatchers("/api/v1/courses").hasRole("TEACHER")
+                        .requestMatchers("/api/payment/webhook").permitAll()
                         //.requestMatchers("/api/teacher/**").permitAll()
                         .anyRequest().authenticated()
                 )
