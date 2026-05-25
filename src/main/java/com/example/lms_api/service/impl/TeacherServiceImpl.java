@@ -25,7 +25,7 @@ public class TeacherServiceImpl implements TeacherService {
     @Override
     @Transactional(readOnly = true)
     public TeacherResponse getTeacherById(Integer teacherId) {
-        Teacher teacher = teacherRepository.findByTeacherId(teacherId)
+        Teacher teacher = teacherRepository.findByUserId(teacherId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên với ID: " + teacherId));
         return teacherMapper.toResponse(teacher);
     }
@@ -36,7 +36,7 @@ public class TeacherServiceImpl implements TeacherService {
     @Override
     @Transactional
     public TeacherResponse updateTeacher(Integer teacherId, TeacherRequest request) {
-        Teacher teacher = teacherRepository.findByTeacherId(teacherId)
+        Teacher teacher = teacherRepository.findByUserId(teacherId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên với ID: " + teacherId));
 
         teacherMapper.updateEntityFromRequest(request, teacher);

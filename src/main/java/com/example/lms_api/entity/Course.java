@@ -15,8 +15,6 @@ import java.time.LocalDateTime;
 public class Course {
 
     @Id
-    // Nếu trong DB bạn có cấu cụ thể cho CourseID tự tăng thì thêm @GeneratedValue,
-    // còn nếu nhập tay bằng cơm thì giữ nguyên như thế này.
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "CourseID")
     private Integer courseId;
