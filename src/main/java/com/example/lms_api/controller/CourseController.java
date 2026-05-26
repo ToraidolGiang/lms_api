@@ -1,6 +1,8 @@
 package com.example.lms_api.controller;
 import com.example.lms_api.dto.request.CourseRequest;
+import com.example.lms_api.dto.response.CourseContentResponse;
 import com.example.lms_api.dto.response.CourseResponse;
+import com.example.lms_api.service.CourseContentService;
 import com.example.lms_api.service.CourseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -52,5 +54,14 @@ public class CourseController {
             @RequestParam(defaultValue = "Không dùng nữa") String reason) {
         courseService.deleteCourse(id, deletedBy, reason);
         return ResponseEntity.ok("Xóa mềm khóa học thành công!");
+    }
+
+    // Spring sẽ tự động inject CourseContentServiceImpl vào biến này
+    private final CourseContentService courseContentService;
+
+    @GetMapping("/{id}/content")
+    public ResponseEntity<CourseContentResponse> getCourseContentById(@PathVariable Integer id) {
+        CourseContentResponse response = courseContentService.getCourseContent(id);
+        return ResponseEntity.ok(response);
     }
 }
