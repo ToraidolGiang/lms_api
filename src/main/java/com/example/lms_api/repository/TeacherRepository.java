@@ -12,6 +12,9 @@ import java.util.Optional;
 public interface TeacherRepository extends JpaRepository<Teacher,String> {
 
     @Query("SELECT t FROM Teacher t WHERE t.user.id = :teacherId")
+    Optional<Teacher> findByUserId(@Param("teacherId") Integer teacherId);
+
+    @Query("SELECT t FROM Teacher t WHERE t.teacherId = :teacherId")
     Optional<Teacher> findByTeacherId(@Param("teacherId") Integer teacherId);
     // Thêm hàm update
     @Modifying
@@ -25,5 +28,7 @@ public interface TeacherRepository extends JpaRepository<Teacher,String> {
                           @Param("location") String location,
                           @Param("phone") String phone,
                           @Param("bio") String bio);
+
+
 
 }

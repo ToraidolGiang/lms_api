@@ -20,5 +20,5 @@ public class TeacherResponse {
     private String location;
     private String phone;
     private String bio;
-    private String school;
+    private String degree;
 }

@@ -4,9 +4,11 @@ import com.example.lms_api.dto.request.CourseRequest;
 import com.example.lms_api.dto.response.CourseResponse;
 import com.example.lms_api.entity.Category;
 import com.example.lms_api.entity.Course;
+import com.example.lms_api.entity.Teacher;
 import com.example.lms_api.mapper.CourseMapper;
 import com.example.lms_api.repository.CategoryRepository;
 import com.example.lms_api.repository.CourseRepository;
+import com.example.lms_api.repository.TeacherRepository;
 import com.example.lms_api.service.CourseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ public class CourseServiceImpl implements CourseService {
 
     private final CourseRepository courseRepository;
     private final CategoryRepository categoryRepository;
+    private final TeacherRepository teacherRepository;
     private final CourseMapper courseMapper;             // ← inject mapper
 
     // ── Tạo mới ──────────────────────────────────────────────
@@ -31,9 +34,13 @@ public class CourseServiceImpl implements CourseService {
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new RuntimeException("Category không tồn tại!"));
 
+        Teacher teacher = teacherRepository.findByTeacherId(request.getTeacherId())
+                .orElseThrow(() -> new RuntimeException("Teacher không tồn tại!"));
+
         // Dùng mapper tạo entity, rồi set các field đặc biệt thủ công
         Course course = courseMapper.toEntity(request);
         course.setCategory(category);
+        course.setTeacher(teacher);
         course.setCreatedAt(LocalDateTime.now());
         course.setIsActive(true);
         course.setIsDeleted(false);
@@ -98,5 +105,14 @@ public class CourseServiceImpl implements CourseService {
         course.setArchiveStatus("Deleted");
 
         courseRepository.save(course);
+    }
+
+    // ── Lấy tất cả khóa học theo teacherId ──────────────────
+    @Override
+    public List<CourseResponse> getCourseByTeacherId(Integer teacherId) {
+        return courseRepository.findByTeacherTeacherId(teacherId)
+                .stream()
+                .map(courseMapper::toResponse)     // ← dùng mapper
+                .collect(Collectors.toList());
     }
 }

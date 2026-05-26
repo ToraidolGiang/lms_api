@@ -4,9 +4,13 @@ import com.example.lms_api.dto.request.LoginRequest;
 import com.example.lms_api.dto.request.RefreshTokenRequest;
 import com.example.lms_api.dto.response.AuthResponse;
 import com.example.lms_api.entity.RefreshTokenEntity;
+import com.example.lms_api.entity.Student;
+import com.example.lms_api.entity.Teacher;
 import com.example.lms_api.entity.User;
 import com.example.lms_api.exception.InvalidTokenException;
 import com.example.lms_api.repository.RefreshTokenRepository;
+import com.example.lms_api.repository.StudentRepository;
+import com.example.lms_api.repository.TeacherRepository;
 import com.example.lms_api.repository.UserRepository;
 import com.example.lms_api.service.AuthService;
 import com.example.lms_api.util.JwtUtil;
@@ -26,6 +30,8 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtUtil jwtUtil;
+    private final TeacherRepository teacherRepository;
+    private final StudentRepository studentRepository;
 
     // ── Đăng nhập ────────────────────────────────────────────
     @Override
@@ -49,6 +55,24 @@ public class AuthServiceImpl implements AuthService {
         String accessToken  = jwtUtil.generateAccessToken(user.getId().toString(), user.getUsername(), user.getRole().name());
         String refreshToken = jwtUtil.generateRefreshToken(user.getId().toString());
 
+
+
+        // Query teacherId hoặc studentId tùy role
+        Integer teacherId = null;
+        Integer studentId = null;
+
+        if (user.getRole() == User.Role.TEACHER) {
+            teacherId = teacherRepository.findByUserId(user.getId())
+                    .map(Teacher::getTeacherId)
+                    .orElse(null);
+        } else if (user.getRole() == User.Role.STUDENT) {
+            studentId = studentRepository.findByUser_Id(user.getId())
+                    .map(Student::getStudentId)
+                    .orElse(null);
+        }
+
+
+
         // Lưu refresh token vào Neon DB
         refreshTokenRepository.save(RefreshTokenEntity.builder()
                 .token(refreshToken)
@@ -61,9 +85,9 @@ public class AuthServiceImpl implements AuthService {
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
                 .userId(user.getId())
-                .email(user.getEmail())
                 .role(user.getRole().name())
-                .isActive(user.isActive())
+                .teacherId(teacherId)   // ← thêm
+                .studentId(studentId)   // ← thêm
                 .build();
     }
 
