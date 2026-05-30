@@ -24,8 +24,9 @@ public class NotificationServiceImpl implements NotificationService {
     private final NotificationMapper notificationMapper;
 
     // KỸ THUẬT QUAN TRỌNG: Lấy userId của người đang gọi API từ JWT
-    private String getCurrentUserId() {
-        return SecurityContextHolder.getContext().getAuthentication().getName();
+    private Integer getCurrentUserId() {
+        String userIdStr = SecurityContextHolder.getContext().getAuthentication().getName();
+        return Integer.parseInt(userIdStr); // Ép kiểu sang số nguyên
     }
 
     @Transactional
@@ -44,7 +45,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Transactional(readOnly = true)
     public List<NotificationResponse> getMyNotifications() {
         // Chỉ lấy thông báo của ĐÚNG CÁI THẰNG đang cầm JWT
-        String currentUserId = getCurrentUserId();
+        Integer currentUserId = getCurrentUserId();
         return notificationRepository.findByUserIdOrderByCreatedAtDesc(currentUserId)
                 .stream()
                 .map(notificationMapper::toResponse)
@@ -54,7 +55,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     @Transactional
     public void markAsRead(String notificationId) {
-        String currentUserId = getCurrentUserId();
+        Integer currentUserId = getCurrentUserId();
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy thông báo"));
 

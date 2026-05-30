@@ -6,7 +6,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class NotificationRequest {
-    private String targetUserId;
+    private int targetUserId;
     private String title;
     // Sửa thuộc tính body thành message, thêm link
     private String message;

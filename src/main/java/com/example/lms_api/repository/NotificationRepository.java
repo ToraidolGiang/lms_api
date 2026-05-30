@@ -10,5 +10,5 @@ import java.util.List;
 public interface NotificationRepository extends MongoRepository<Notification, String> {
 
     // Spring Data MongoDB tự động hiểu và chuyển thành query tìm theo userId
-    List<Notification> findByUserIdOrderByCreatedAtDesc(String userId);
+    List<Notification> findByUserIdOrderByCreatedAtDesc(Integer userId);
 }

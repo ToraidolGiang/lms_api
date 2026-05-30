@@ -1,7 +1,7 @@
 package com.example.lms_api.service.impl;
 
 import com.example.lms_api.dto.request.PaymentCheckoutRequest;
-import com.example.lms_api.dto.request.PaymentWebhookRequest;
+import com.example.lms_api.dto.request.PayOSWebhookRequest;
 import com.example.lms_api.dto.response.PaymentCheckoutResponse;
 import com.example.lms_api.dto.response.PaymentWebhookResponse;
 import com.example.lms_api.entity.Course;
@@ -18,7 +18,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import vn.payos.PayOS;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
 import java.time.LocalDateTime;
 
 @Service
@@ -29,13 +31,13 @@ public class PaymentServiceImpl implements PaymentService {
     private final EnrollmentRepository enrollmentRepository;
     private final CourseRepository courseRepository;
     private final StudentRepository studentRepository;
+    private final PayOS payOS;
 
     private Integer currentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || auth.getName() == null) {
             throw new RuntimeException("Unauthenticated");
         }
-        // UserDetailsServiceImpl set username = userId
         return Integer.parseInt(auth.getName());
     }
 
@@ -52,7 +54,6 @@ public class PaymentServiceImpl implements PaymentService {
         Course course = courseRepository.findById(request.getCourseId())
                 .orElseThrow(() -> new RuntimeException("Course không tồn tại!"));
 
-        // Nếu đã active enrollment thì không tạo payment mới
         boolean purchased = enrollmentRepository.existsByCourse_CourseIdAndStudent_StudentIdAndAccessStatus(
                 course.getCourseId(), student.getStudentId(), "Active");
         if (purchased) {
@@ -74,33 +75,63 @@ public class PaymentServiceImpl implements PaymentService {
 
         Payment saved = paymentRepository.save(payment);
 
-        // Chuỗi QR demo: client render QR từ chuỗi này
-        String qrText = "LMS|PAYMENT=" + saved.getPaymentId() + "|AMOUNT=" + saved.getAmount();
+        try {
+            CreatePaymentLinkRequest paymentData = CreatePaymentLinkRequest.builder()
+                    .orderCode(saved.getPaymentId().longValue())
+                    .amount(saved.getAmount().longValue())
+                    .description("Thanh toan khoa hoc")
+                    .returnUrl("https://localhost:8080/success")
+                    .cancelUrl("https://localhost:8080/cancel")
+                    .build();
 
-        return PaymentCheckoutResponse.builder()
-                .paymentId(saved.getPaymentId())
-                .amount(saved.getAmount())
-                .paymentStatus(saved.getPaymentStatus())
-                .qrText(qrText)
-                .build();
+            CreatePaymentLinkResponse data = payOS.paymentRequests().create(paymentData);
+
+            return PaymentCheckoutResponse.builder()
+                    .paymentId(saved.getPaymentId())
+                    .amount(saved.getAmount())
+                    .paymentStatus(saved.getPaymentStatus())
+                    .qrText(null) // Để null vì mình không tự vẽ QR nữa
+                    .checkoutUrl(data.getCheckoutUrl()) // SỬA Ở ĐÂY: Gán link của PayOS vào đúng trường checkoutUrl
+                    .build();
+
+        } catch (Exception e) {
+            System.err.println("======== LỖI TỪ PAYOS ========");
+            e.printStackTrace();
+            System.err.println("==============================");
+            throw new RuntimeException("Lỗi tạo PayOS link: " + e.getMessage());
+        }
     }
 
     @Override
     @Transactional
-    public PaymentWebhookResponse handleWebhook(PaymentWebhookRequest request) {
-        Payment payment = paymentRepository.findById(request.getPaymentId())
-                .orElseThrow(() -> new RuntimeException("Payment không tồn tại!"));
-
-        String newStatus = request.getPaymentStatus();
-        if (newStatus == null || newStatus.isBlank()) {
-            throw new RuntimeException("paymentStatus is required");
+    public PaymentWebhookResponse handleWebhook(PayOSWebhookRequest request) {
+        if (request.getData() == null || request.getData().getOrderCode() == null) {
+            throw new RuntimeException("Dữ liệu webhook từ PayOS không hợp lệ");
         }
 
+        // Đọc mã giao dịch từ orderCode của PayOS
+        Integer paymentId = request.getData().getOrderCode();
+        Payment payment = paymentRepository.findById(paymentId).orElse(null);
+
+        // NẾU PAYOS GỬI MÃ TEST (Không có trong DB) -> Vẫn trả về OK để PayOS chịu lưu link
+        if (payment == null) {
+            System.out.println("===> Nhận request test Webhook từ PayOS cho mã: " + paymentId);
+            return PaymentWebhookResponse.builder()
+                    .paymentId(paymentId)
+                    .paymentStatus("Test_OK")
+                    .enrollmentId(null)
+                    .build();
+        }
+
+        // Kiểm tra trạng thái: Mã "00" đại diện cho thanh toán thành công
+        String newStatus = "00".equals(request.getCode()) ? "Paid" : "Failed";
+
         payment.setPaymentStatus(newStatus);
+
         if ("Paid".equalsIgnoreCase(newStatus)) {
             payment.setPaymentDate(LocalDateTime.now());
 
-            // tạo enrollment nếu chưa có
+            // Tìm kiếm hoặc tạo mới thông tin ghi danh khóa học cho học viên
             Enrollment enrollment = enrollmentRepository
                     .findFirstByCourse_CourseIdAndStudent_StudentIdOrderByEnrollDateDesc(
                             payment.getCourse().getCourseId(),
