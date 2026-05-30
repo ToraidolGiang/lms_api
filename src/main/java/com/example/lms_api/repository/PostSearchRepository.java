@@ -5,5 +5,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface PostSearchRepository {
-    Page<Post> search(String q, String category, Pageable pageable);
+    // Chỉ định nghĩa tên hàm, không viết logic ở đây
+    Page<Post> search(String query, String category, String sortBy, Pageable pageable);
 }
