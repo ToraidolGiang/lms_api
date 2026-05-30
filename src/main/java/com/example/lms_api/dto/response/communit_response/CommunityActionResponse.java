@@ -1,5 +1,6 @@
 package com.example.lms_api.dto.response.communit_response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -10,14 +11,30 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CommunityActionResponse {
-    public boolean success;
-    public boolean deleted;
-    public boolean liked;
-    public String message;
-    public String id;        // FE có field này
-    public String postId;
-    public String commentId;
-    public int likesCount;
+
+    @JsonProperty("success")
+    private boolean success;
+
+    @JsonProperty("deleted")
+    private boolean deleted;
+
+    @JsonProperty("liked")
+    private boolean liked;
+
+    @JsonProperty("message")
+    private String message;
+
+    @JsonProperty("id")
+    private String id;
+
+    @JsonProperty("postId")
+    private String postId;
+
+    @JsonProperty("commentId")
+    private String commentId;
+
+    @JsonProperty("likesCount")
+    private int likesCount;
 
     public static CommunityActionResponse like(String postId, boolean liked, int likesCount) {
         return new CommunityActionResponse(true, false, liked, "OK", postId, postId, null, likesCount);

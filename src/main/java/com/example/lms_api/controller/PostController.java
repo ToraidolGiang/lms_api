@@ -6,6 +6,7 @@ import com.example.lms_api.dto.response.communit_response.CommentResponse;
 import com.example.lms_api.dto.response.communit_response.CommunityActionResponse;
 import com.example.lms_api.dto.response.communit_response.PostDetailResponse;
 import com.example.lms_api.dto.response.communit_response.PostResponse;
+import com.example.lms_api.dto.response.communit_response.CommunityStatsResponse;
 import com.example.lms_api.service.PostService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,16 +26,21 @@ public class PostController {
         this.postService = postService;
     }
 
+    @GetMapping("/stats")
+    public ResponseEntity<CommunityStatsResponse> getCommunityStats() {
+        return ResponseEntity.ok(postService.getCommunityStats());
+    }
+
     @GetMapping
     public ResponseEntity<List<PostResponse>> getPosts(
             @RequestParam(required = false) String category,
             @RequestParam(required = false, name = "q") String query,
+            @RequestParam(defaultValue = "newest") String sortBy,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        return ResponseEntity.ok(postService.getPosts(category, query, page, size));
+        return ResponseEntity.ok(postService.getPosts(category, query, sortBy, page, size));
     }
-
 
     @GetMapping("/{id}")
     public ResponseEntity<PostDetailResponse> getPostDetail(
@@ -47,15 +53,22 @@ public class PostController {
 
     @PostMapping
     public ResponseEntity<PostResponse> createPost(
-            @RequestParam String category,
+            @RequestParam(required = false) String category,
             @RequestBody CreatePostRequest request,
             Authentication authentication
     ) {
         String userId = requireUserId(authentication);
-
-        if (request.getCategory() == null || request.getCategory().trim().isEmpty()) request.setCategory(category);
-        if (request.getType() == null || request.getType().trim().isEmpty()) request.setType(category);
-
+        if (category != null && !category.trim().isEmpty()) {
+            request.setCategory(category);
+            request.setType(category);
+        } else {
+            if (request.getCategory() == null || request.getCategory().trim().isEmpty()) {
+                request.setCategory("Thảo luận");
+            }
+            if (request.getType() == null || request.getType().trim().isEmpty()) {
+                request.setType(request.getCategory());
+            }
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(postService.createPost(request, userId));
     }
 
@@ -97,6 +110,29 @@ public class PostController {
         String userId = requireUserId(authentication);
         boolean isAdmin = hasRole(authentication, "ROLE_ADMIN");
         return ResponseEntity.ok(postService.deleteComment(postId, commentId, userId, isAdmin));
+    }
+
+    @PutMapping("/{postId}")
+    public ResponseEntity<PostResponse> updatePost(
+            @PathVariable String postId,
+            @RequestBody com.example.lms_api.dto.request.UpdatePostRequest request,
+            Authentication authentication
+    ) {
+        String userId = requireUserId(authentication);
+        boolean isAdmin = hasRole(authentication, "ROLE_ADMIN");
+        return ResponseEntity.ok(postService.updatePost(postId, request, userId, isAdmin));
+    }
+
+    // 🌟 BỔ SUNG: Mở Endpoint API cho tính năng Ghim bài (Chỉ cho phép ROLE_ADMIN hoặc ROLE_TEACHER)
+    @PostMapping("/{postId}/pin")
+    public ResponseEntity<PostResponse> togglePin(
+            @PathVariable String postId,
+            Authentication authentication
+    ) {
+        String userId = requireUserId(authentication);
+        // Kiểm tra quyền: Phải là Admin hoặc Giảng viên mới được ghim
+        boolean canPin = hasRole(authentication, "ROLE_ADMIN") || hasRole(authentication, "ROLE_TEACHER");
+        return ResponseEntity.ok(postService.togglePin(postId, userId, canPin));
     }
 
     private String requireUserId(Authentication authentication) {

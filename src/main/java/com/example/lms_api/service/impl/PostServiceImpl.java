@@ -2,26 +2,27 @@ package com.example.lms_api.service.impl;
 
 import com.example.lms_api.dto.request.CreateCommentRequest;
 import com.example.lms_api.dto.request.CreatePostRequest;
-import com.example.lms_api.dto.response.communit_response.CommentResponse;
-import com.example.lms_api.dto.response.communit_response.CommunityActionResponse;
-import com.example.lms_api.dto.response.communit_response.PostDetailResponse;
-import com.example.lms_api.dto.response.communit_response.PostResponse;
+import com.example.lms_api.dto.response.communit_response.*;
 import com.example.lms_api.entity.Comment;
 import com.example.lms_api.entity.Post;
 import com.example.lms_api.entity.User;
 import com.example.lms_api.mapper.PostMapper;
 import com.example.lms_api.repository.PostRepository;
+import com.example.lms_api.repository.PostSearchRepository;
 import com.example.lms_api.repository.UserRepository;
 import com.example.lms_api.service.PostService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
-
 import java.time.Instant;
-import java.util.ArrayList;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.UUID;
+import java.util.Set;
+import java.util.HashSet;
 
 @Service
 public class PostServiceImpl implements PostService {
@@ -36,44 +37,22 @@ public class PostServiceImpl implements PostService {
         this.userRepository = userRepository;
     }
 
+    @Autowired
+    private PostSearchRepository postSearchRepository;
+
     @Override
-    public List<PostResponse> getPosts(String category, String query, int page, int size) {
+    public List<PostResponse> getPosts(String category, String query, String sortBy, int page, int size) {
         int pageIndex = Math.max(0, page - 1);
         int pageSize = Math.max(1, size);
         Pageable pageable = org.springframework.data.domain.PageRequest.of(pageIndex, pageSize);
 
-        String cat = (category == null) ? null : category.trim();
-        String q = (query == null) ? null : query.trim();
+        org.springframework.data.domain.Page<Post> postsPage = postSearchRepository.search(query, category, sortBy, pageable);
 
-        // Escape keyword để regex không bị ký tự đặc biệt phá
-        String regex = null;
-        if (q != null && !q.isEmpty()) {
-            regex = ".*" + java.util.regex.Pattern.quote(q) + ".*";
-        }
-
-        org.springframework.data.domain.Page<Post> postsPage;
-
-        if (regex != null) {
-            if (cat != null && !cat.isEmpty()) {
-                postsPage = postRepository.findByCategoryAndSearchQuery(cat, regex, pageable);
-            } else {
-                postsPage = postRepository.findBySearchQuery(regex, pageable);
-            }
-        } else {
-            if (cat != null && !cat.isEmpty()) {
-                postsPage = postRepository.findByCategoryIgnoreCaseOrderByCreatedAtDesc(cat, pageable);
-            } else {
-                postsPage = postRepository.findAllByOrderByCreatedAtDesc(pageable);
-            }
-        }
-
-        // fallback authorRole cho data cũ (nếu bạn đã có enrichAuthorRole)
         List<Post> posts = postsPage.getContent();
         for (Post p : posts) enrichAuthorRole(p);
 
         return posts.stream().map(postMapper::toResponse).toList();
     }
-
 
     @Override
     public PostDetailResponse getPostDetail(String id, String currentUserId) {
@@ -93,9 +72,7 @@ public class PostServiceImpl implements PostService {
     @Override
     public PostResponse createPost(CreatePostRequest request, String userId) {
         validateCreatePostRequest(request);
-
         User user = findUserByIdString(userId);
-
         Instant now = Instant.now();
 
         String category = request.getCategory() != null && !request.getCategory().trim().isEmpty()
@@ -118,7 +95,9 @@ public class PostServiceImpl implements PostService {
 
         post.setUserId(userId);
         post.setAuthorName(user.getUsername());
-        post.setAuthorRole(user.getRole().name()); // ✅
+        post.setAuthorRole(user.getRole().name());
+
+        post.setPinned(false); // Đảm bảo bài viết mới luôn không được ghim
 
         post.setCreatedAt(now);
         post.setUpdatedAt(now);
@@ -142,14 +121,12 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public CommunityActionResponse toggleLike(String postId, String currentUserId) {
-        if (currentUserId == null || currentUserId.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập");
-        }
-
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bài viết id = " + postId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bài viết"));
 
-        if (post.getLikes() == null) post.setLikes(new ArrayList<>());
+        if (post.getLikes() == null) {
+            post.setLikes(new ArrayList<>());
+        }
 
         boolean liked;
         if (post.getLikes().contains(currentUserId)) {
@@ -160,10 +137,8 @@ public class PostServiceImpl implements PostService {
             liked = true;
         }
 
-        post.setUpdatedAt(Instant.now());
-        Post saved = postRepository.save(post);
-
-        int likesCount = saved.getLikes() == null ? 0 : saved.getLikes().size();
+        postRepository.save(post);
+        int likesCount = post.getLikes().size();
         return CommunityActionResponse.like(postId, liked, likesCount);
     }
 
@@ -177,7 +152,6 @@ public class PostServiceImpl implements PostService {
         }
 
         User user = findUserByIdString(currentUserId);
-
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bài viết id = " + postId));
 
@@ -237,7 +211,95 @@ public class PostServiceImpl implements PostService {
         return CommunityActionResponse.deleteComment(postId, commentId);
     }
 
-    // ── Helpers ──────────────────────────────────────────────
+    @Override
+    public PostResponse updatePost(String postId, com.example.lms_api.dto.request.UpdatePostRequest request, String currentUserId, boolean isAdmin) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bài viết id = " + postId));
+
+        if (!isAdmin && (currentUserId == null || !currentUserId.equals(post.getUserId()))) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền chỉnh sửa bài viết này");
+        }
+
+        if (request.getTitle() != null && !request.getTitle().trim().isEmpty()) {
+            post.setTitle(request.getTitle().trim());
+        }
+        if (request.getContent() != null && !request.getContent().trim().isEmpty()) {
+            post.setContent(request.getContent().trim());
+        }
+        if (request.getCategory() != null && !request.getCategory().trim().isEmpty()) {
+            post.setCategory(request.getCategory().trim());
+        }
+        if (request.getType() != null && !request.getType().trim().isEmpty()) {
+            post.setType(request.getType().trim());
+        }
+        if (request.getTags() != null) {
+            post.setTags(request.getTags());
+        }
+
+        post.setUpdatedAt(Instant.now());
+        Post updatedPost = postRepository.save(post);
+        return postMapper.toResponse(updatedPost);
+    }
+
+    @Override
+    public CommunityStatsResponse getCommunityStats() {
+        long totalMembers = userRepository.count();
+        long totalTopics = postRepository.count();
+        long totalReplies = 0;
+
+        List<Post> allPosts = postRepository.findAll();
+        for (Post p : allPosts) {
+            if (p.getComments() != null) {
+                totalReplies += p.getComments().size();
+            }
+        }
+
+        Instant tenMinutesAgo = Instant.now().minus(10, ChronoUnit.MINUTES);
+        Set<String> activeUserIds = new HashSet<>();
+
+        for (Post p : allPosts) {
+            if (p.getCreatedAt() != null && p.getCreatedAt().isAfter(tenMinutesAgo)) {
+                if (p.getUserId() != null) {
+                    activeUserIds.add(p.getUserId());
+                }
+            }
+
+            if (p.getComments() != null) {
+                for (Comment c : p.getComments()) {
+                    if (c.getCreatedAt() != null && c.getCreatedAt().isAfter(tenMinutesAgo)) {
+                        if (c.getUserId() != null) {
+                            activeUserIds.add(c.getUserId());
+                        }
+                    }
+                }
+            }
+        }
+
+        int liveOnlineCount = activeUserIds.size();
+        if (liveOnlineCount == 0) {
+            liveOnlineCount = 1;
+        }
+
+        return new CommunityStatsResponse(totalMembers, totalTopics, totalReplies, liveOnlineCount);
+    }
+
+    // 🌟 BỔ SUNG LOGIC: Xử lý Bật/Tắt ghim bài viết
+    @Override
+    public PostResponse togglePin(String postId, String currentUserId, boolean canPin) {
+        if (!canPin) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ Quản trị viên hoặc Giảng viên mới có quyền ghim bài");
+        }
+
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bài viết id = " + postId));
+
+        // Đảo ngược trạng thái (đang ghim thì tắt, đang tắt thì ghim)
+        post.setPinned(!post.isPinned());
+        post.setUpdatedAt(Instant.now());
+
+        Post savedPost = postRepository.save(post);
+        return postMapper.toResponse(savedPost);
+    }
 
     private void validateCreatePostRequest(CreatePostRequest request) {
         if (request == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request không được null");
@@ -257,7 +319,6 @@ public class PostServiceImpl implements PostService {
         }
     }
 
-    // ✅ fallback authorRole cho post cũ chưa có field
     private void enrichAuthorRole(Post post) {
         if (post == null) return;
         if (post.getAuthorRole() != null && !post.getAuthorRole().isBlank()) return;
@@ -267,7 +328,13 @@ public class PostServiceImpl implements PostService {
 
         try {
             Integer uid = Integer.parseInt(uidStr);
-            userRepository.findById(String.valueOf(uid)).ifPresent(u -> post.setAuthorRole(u.getRole().name()));
+            userRepository.findById(String.valueOf(uid)).ifPresent(u -> {
+                if (u.getRole() != null) {
+                    post.setAuthorRole(u.getRole().name());
+                } else {
+                    post.setAuthorRole("TEACHER");
+                }
+            });
         } catch (NumberFormatException ignore) {
         }
     }
