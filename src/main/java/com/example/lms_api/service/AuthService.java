@@ -2,6 +2,7 @@ package com.example.lms_api.service;
 
 import com.example.lms_api.dto.request.LoginRequest;
 import com.example.lms_api.dto.request.RefreshTokenRequest;
+import com.example.lms_api.dto.request.RegisterRequest;
 import com.example.lms_api.dto.response.AuthResponse;
 
 public interface AuthService {
@@ -14,5 +15,7 @@ public interface AuthService {
 
     // ── Đăng xuất ─────────────────────────────────────────────
     void logout(String refreshToken);
+
+    public AuthResponse register(RegisterRequest request);
 
 }

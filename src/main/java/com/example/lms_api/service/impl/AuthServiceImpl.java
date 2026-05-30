@@ -2,6 +2,7 @@ package com.example.lms_api.service.impl;
 
 import com.example.lms_api.dto.request.LoginRequest;
 import com.example.lms_api.dto.request.RefreshTokenRequest;
+import com.example.lms_api.dto.request.RegisterRequest;
 import com.example.lms_api.dto.response.AuthResponse;
 import com.example.lms_api.entity.RefreshTokenEntity;
 import com.example.lms_api.entity.Student;
@@ -125,4 +126,90 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenRepository.findByToken(refreshToken)
                 .ifPresent(refreshTokenRepository::delete);
     }
+
+    @Override
+    @Transactional
+    public AuthResponse register(RegisterRequest request) {
+
+        // 1. Kiểm tra trùng username / email
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new IllegalArgumentException("Username đã tồn tại");
+        }
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new IllegalArgumentException("Email đã được đăng ký");
+        }
+
+        // 2. Xác định role
+        User.Role role;
+
+        try {
+            role = (request.getRole() != null && !request.getRole().isBlank())
+                    ? User.Role.valueOf(request.getRole().toUpperCase())
+                    : User.Role.STUDENT;
+
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(
+                    "Role không hợp lệ. Chỉ chấp nhận: STUDENT, TEACHER"
+            );
+        }
+
+        // Không cho phép ADMIN
+        if (role == User.Role.ADMIN) {
+            throw new IllegalArgumentException(
+                    "Không thể đăng ký tài khoản ADMIN"
+            );
+        }
+
+        // 3. Gọi procedure
+        userRepository.createUserWithProfile(
+                request.getEmail(),
+                request.getUsername(),
+                request.getPassword(),
+                role.name()
+        );
+
+        // 4. Lấy lại user vừa tạo
+        User user = userRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
+
+        // 5. Generate token
+        String accessToken = jwtUtil.generateAccessToken(
+                user.getId().toString(),
+                user.getUsername(),
+                user.getRole().name()
+        );
+
+        String refreshToken = jwtUtil.generateRefreshToken(
+                user.getId().toString()
+        );
+
+
+        Integer teacherId = null;
+        Integer studentId = null;
+
+        if (user.getRole() == User.Role.TEACHER) {
+            teacherId = teacherRepository.findByUserId(user.getId())
+                    .map(Teacher::getTeacherId)
+                    .orElse(null);
+        } else if (user.getRole() == User.Role.STUDENT) {
+            studentId = studentRepository.findByUser_Id(user.getId())
+                    .map(Student::getStudentId)
+                    .orElse(null);
+        }
+
+        // 6. Response
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .userId(user.getId())
+                .email(user.getEmail())
+                .isActive(user.isActive())
+                .role(user.getRole().name())
+                .teacherId(teacherId)   // ← thêm
+                .studentId(studentId)
+                .build();
+    }
+
 }
