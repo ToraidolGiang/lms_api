@@ -18,7 +18,7 @@ public class Notification { // Nên đổi tên thành NotificationDocument
 
     // Lưu thẳng ID của User, KHÔNG dùng @ManyToOne hay UserEntity nữa
     @Field("userId")
-    private String userId;
+    private Integer userId;
 
     private String title;
     private String message; // Đổi từ body -> message cho khớp với JSON của bạn
