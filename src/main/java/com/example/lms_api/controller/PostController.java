@@ -101,6 +101,18 @@ public class PostController {
         return ResponseEntity.status(HttpStatus.CREATED).body(postService.addComment(postId, request, userId));
     }
 
+    // 🌟 BỔ SUNG ENDPOINT: Định tuyến PUT cập nhật nội dung bình luận
+    @PutMapping("/{postId}/comments/{commentId}")
+    public ResponseEntity<CommentResponse> updateComment(
+            @PathVariable String postId,
+            @PathVariable String commentId,
+            @RequestBody CreateCommentRequest request,
+            Authentication authentication
+    ) {
+        String userId = requireUserId(authentication);
+        return ResponseEntity.ok(postService.updateComment(postId, commentId, request, userId));
+    }
+
     @DeleteMapping("/{postId}/comments/{commentId}")
     public ResponseEntity<CommunityActionResponse> deleteComment(
             @PathVariable String postId,
@@ -123,14 +135,12 @@ public class PostController {
         return ResponseEntity.ok(postService.updatePost(postId, request, userId, isAdmin));
     }
 
-    // 🌟 BỔ SUNG: Mở Endpoint API cho tính năng Ghim bài (Chỉ cho phép ROLE_ADMIN hoặc ROLE_TEACHER)
     @PostMapping("/{postId}/pin")
     public ResponseEntity<PostResponse> togglePin(
             @PathVariable String postId,
             Authentication authentication
     ) {
         String userId = requireUserId(authentication);
-        // Kiểm tra quyền: Phải là Admin hoặc Giảng viên mới được ghim
         boolean canPin = hasRole(authentication, "ROLE_ADMIN") || hasRole(authentication, "ROLE_TEACHER");
         return ResponseEntity.ok(postService.togglePin(postId, userId, canPin));
     }
