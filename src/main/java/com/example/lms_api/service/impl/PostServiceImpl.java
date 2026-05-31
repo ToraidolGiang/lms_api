@@ -97,7 +97,7 @@ public class PostServiceImpl implements PostService {
         post.setAuthorName(user.getUsername());
         post.setAuthorRole(user.getRole().name());
 
-        post.setPinned(false); // Đảm bảo bài viết mới luôn không được ghim
+        post.setPinned(false);
 
         post.setCreatedAt(now);
         post.setUpdatedAt(now);
@@ -173,6 +173,59 @@ public class PostServiceImpl implements PostService {
         postRepository.save(post);
 
         return new CommentResponse(commentId, currentUserId, user.getUsername(), comment.getContent(), now);
+    }
+
+    // 🌟 BỔ SUNG LOGIC THỰC THI: Chỉnh sửa bình luận bài viết
+    @Override
+    public CommentResponse updateComment(String postId, String commentId, CreateCommentRequest request, String currentUserId) {
+        if (currentUserId == null || currentUserId.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập");
+        }
+        if (request == null || request.getContent() == null || request.getContent().trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng nhập nội dung bình luận cần chỉnh sửa");
+        }
+
+        // 1. Tìm kiếm bài viết chứa bình luận
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bài viết id = " + postId));
+
+        if (post.getComments() == null || post.getComments().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Bài viết chưa có bất kỳ bình luận nào");
+        }
+
+        // 2. Tìm bình luận mục tiêu trong mảng lồng
+        Comment targetComment = null;
+        for (Comment c : post.getComments()) {
+            if (commentId != null && commentId.equals(c.getCommentId())) {
+                targetComment = c;
+                break;
+            }
+        }
+
+        if (targetComment == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bình luận id = " + commentId);
+        }
+
+        // 3. KIỂM TRA BẢO MẬT CHÍ MANH: Chỉ chính chủ viết ra bình luận mới có quyền sửa đổi
+        if (!currentUserId.equals(targetComment.getUserId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền chỉnh sửa bình luận của người khác");
+        }
+
+        // 4. Tiến hành đè nội dung mới và lưu lại
+        Instant now = Instant.now();
+        targetComment.setContent(request.getContent().trim());
+        targetComment.setCreatedAt(now); // Cập nhật mốc thời gian sửa đổi mới nhất
+
+        post.setUpdatedAt(now);
+        postRepository.save(post);
+
+        return new CommentResponse(
+                targetComment.getCommentId(),
+                targetComment.getUserId(),
+                targetComment.getAuthorName(),
+                targetComment.getContent(),
+                targetComment.getCreatedAt()
+        );
     }
 
     @Override
@@ -283,7 +336,6 @@ public class PostServiceImpl implements PostService {
         return new CommunityStatsResponse(totalMembers, totalTopics, totalReplies, liveOnlineCount);
     }
 
-    // 🌟 BỔ SUNG LOGIC: Xử lý Bật/Tắt ghim bài viết
     @Override
     public PostResponse togglePin(String postId, String currentUserId, boolean canPin) {
         if (!canPin) {
@@ -293,7 +345,6 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bài viết id = " + postId));
 
-        // Đảo ngược trạng thái (đang ghim thì tắt, đang tắt thì ghim)
         post.setPinned(!post.isPinned());
         post.setUpdatedAt(Instant.now());
 

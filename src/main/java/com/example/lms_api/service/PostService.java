@@ -26,10 +26,12 @@ public interface PostService {
 
     CommunityActionResponse deleteComment(String postId, String commentId, String currentUserId, boolean isAdmin);
 
+    // 🌟 BỔ SUNG: Khai báo nghiệp vụ Chỉnh sửa bình luận
+    CommentResponse updateComment(String postId, String commentId, CreateCommentRequest request, String currentUserId);
+
     PostResponse updatePost(String postId, UpdatePostRequest request, String currentUserId, boolean isAdmin);
 
     CommunityStatsResponse getCommunityStats();
 
-    // 🌟 BỔ SUNG: Khai báo hàm thao tác Ghim/Bỏ ghim
     PostResponse togglePin(String postId, String currentUserId, boolean canPin);
 }
