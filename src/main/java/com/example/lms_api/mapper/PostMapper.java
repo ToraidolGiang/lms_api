@@ -29,21 +29,24 @@ public class PostMapper {
             category = post.getType();
         }
 
-        return new PostResponse(
-                post.getId(),
-                title,
-                post.getContent(),
-                category,
-                post.getType(),
-                post.getViews(),
-                likesCount,
-                commentsCount,
-                post.getCreatedAt(),
-                post.getUpdatedAt(),
-                post.getUserId(),
-                post.getAuthorName(),
-                post.getAuthorRole()
-        );
+        // 🌟 SỬA ĐOẠN NÀY: Dùng các hàm Set thay vì Constructor dài dòng
+        PostResponse response = new PostResponse();
+        response.setId(post.getId());
+        response.setTitle(title);
+        response.setContent(post.getContent());
+        response.setCategory(category);
+        response.setType(post.getType());
+        response.setViews(post.getViews());
+        response.setLikes(likesCount);
+        response.setCommentsCount(commentsCount);
+        response.setCreatedAt(post.getCreatedAt());
+        response.setUpdatedAt(post.getUpdatedAt());
+        response.setUserId(post.getUserId());
+        response.setAuthorName(post.getAuthorName());
+        response.setAuthorRole(post.getAuthorRole());
+        response.setTags(post.getTags()); // 🌟 Đưa mảng tags thực tế từ MongoDB sang DTO thành công!
+
+        return response;
     }
 
     public PostDetailResponse toDetailResponse(Post post, String currentUserId) {
@@ -64,6 +67,8 @@ public class PostMapper {
         detail.setUserId(base.getUserId());
         detail.setAuthorName(base.getAuthorName());
         detail.setAuthorRole(base.getAuthorRole());
+
+        detail.setTags(post.getTags());
 
 
         boolean likedByMe = currentUserId != null

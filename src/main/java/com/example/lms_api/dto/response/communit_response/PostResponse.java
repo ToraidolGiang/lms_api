@@ -1,61 +1,36 @@
 package com.example.lms_api.dto.response.communit_response;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.util.List;
 
 @Setter
 @Getter
+@NoArgsConstructor
+@AllArgsConstructor
 public class PostResponse {
 
     private String id;
-
     private String title;
-
     private String content;
-
     private String category;
-
     private String type;
-
     private int views;
-
     private int likes;
-
     private int commentsCount;
-
     private Instant createdAt;
-
     private Instant updatedAt;
-
     private String userId;
-
     private String authorName;
-
     private String authorRole;
 
+    private List<String> tags;
 
-    public PostResponse() {
-    }
+    // 🌟 BỔ SUNG: Truyền cờ Ghim xuống cho Frontend xử lý giao diện
 
-    public PostResponse(String id, String title, String content, String category, String type,
-                        int views, int likes, int commentsCount,
-                        Instant createdAt, Instant updatedAt,
-                        String userId, String authorName,String authorRole) {
-        this.id = id;
-        this.title = title;
-        this.content = content;
-        this.category = category;
-        this.type = type;
-        this.views = views;
-        this.likes = likes;
-        this.commentsCount = commentsCount;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-        this.userId = userId;
-        this.authorName = authorName;
-        this.authorRole = authorRole;
-    }
-
+    private boolean pinned;
 }
