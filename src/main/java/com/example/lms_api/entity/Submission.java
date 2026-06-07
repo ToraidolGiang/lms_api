@@ -19,7 +19,7 @@ public class Submission {
 
     // Trong DB của bạn StudentID là VARCHAR(50), nên ta ép kiểu ID Int sang String
     @Column(name = "studentid", length = 50)
-    private String studentId;
+    private Integer studentId;
 
     @Column(name = "submittedat")
     private LocalDateTime submittedAt;
