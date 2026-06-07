@@ -20,10 +20,6 @@ public class PayOSConfig {
 
     @Bean
     public PayOS payOS() {
-        String clientId = "12751b06-b7c4-4c5a-9e57-d33e68cdc923"; // Copy lại mã thật trên web dán vào đây
-        String apiKey = "4dad4e92-f8c1-4bf0-b59f-5c3ea8a37375"; // Copy lại mã thật dán vào đây
-        String checksumKey = "5c0d564b86e464ba1edcb1d967b34458c561cec362f99642133b37d008521418"; // Lấy ĐÚNG mã Checksum của "Kênh thanh toán"
-
         return new PayOS(clientId, apiKey, checksumKey);
     }
 }
