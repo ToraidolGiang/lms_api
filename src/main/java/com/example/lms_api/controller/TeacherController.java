@@ -3,6 +3,7 @@ package com.example.lms_api.controller;
 import com.example.lms_api.dto.request.TeacherRequest;
 import com.example.lms_api.dto.response.TeacherResponse;
 import com.example.lms_api.service.TeacherService;
+import com.example.lms_api.service.impl.TeacherServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class TeacherController {
 
-    private final TeacherService teacherService;
+    private final TeacherServiceImpl teacherService;
 
     /**
      * Lấy thông tin chi tiết một giáo viên theo ID

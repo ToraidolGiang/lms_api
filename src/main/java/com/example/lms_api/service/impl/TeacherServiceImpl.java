@@ -2,8 +2,7 @@ package com.example.lms_api.service.impl;
 
 import com.example.lms_api.dto.request.TeacherRequest;
 import com.example.lms_api.dto.response.TeacherResponse;
-import com.example.lms_api.entity.TeacherEntity;
-import com.example.lms_api.entity.UserEntity;
+import com.example.lms_api.entity.Teacher;
 import com.example.lms_api.mapper.TeacherMapper;
 import com.example.lms_api.repository.TeacherRepository;
 import com.example.lms_api.repository.UserRepository;
@@ -26,7 +25,7 @@ public class TeacherServiceImpl implements TeacherService {
     @Override
     @Transactional(readOnly = true)
     public TeacherResponse getTeacherById(Integer teacherId) {
-        TeacherEntity teacher = teacherRepository.findByTeacherId(teacherId)
+        Teacher teacher = teacherRepository.findByUserId(teacherId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên với ID: " + teacherId));
         return teacherMapper.toResponse(teacher);
     }
@@ -37,7 +36,7 @@ public class TeacherServiceImpl implements TeacherService {
     @Override
     @Transactional
     public TeacherResponse updateTeacher(Integer teacherId, TeacherRequest request) {
-        TeacherEntity teacher = teacherRepository.findByTeacherId(teacherId)
+        Teacher teacher = teacherRepository.findByUserId(teacherId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên với ID: " + teacherId));
 
         teacherMapper.updateEntityFromRequest(request, teacher);
