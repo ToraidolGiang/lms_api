@@ -2,6 +2,7 @@ package com.example.lms_api.service.impl;
 
 
 
+import com.example.lms_api.dto.request.TeacherRequest;
 import com.example.lms_api.dto.response.StudentResponse;
 import com.example.lms_api.entity.Student;
 import com.example.lms_api.mapper.StudentMapper;
@@ -15,6 +16,11 @@ public class StudentServiceImpl implements StudentService {
 
     @Autowired
     private StudentRepository studentRepository;
+
+    @Override
+    public StudentResponse updateStudent(Integer stu, TeacherRequest request) {
+        return null;
+    }
 
     @Autowired
     private StudentMapper studentMapper;
