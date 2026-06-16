@@ -36,11 +36,11 @@ public class TeacherServiceImpl implements TeacherService {
     @Override
     @Transactional
     public TeacherResponse updateTeacher(Integer teacherId, TeacherRequest request) {
-        Teacher teacher = teacherRepository.findByUserId(teacherId)
+        Teacher teacher = teacherRepository.findByTeacherId(teacherId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên với ID: " + teacherId));
-
         teacherMapper.updateEntityFromRequest(request, teacher);
         teacher = teacherRepository.save(teacher);
+
 
         return teacherMapper.toResponse(teacher);
     }
