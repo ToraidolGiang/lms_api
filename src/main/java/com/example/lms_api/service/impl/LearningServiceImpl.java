@@ -94,7 +94,7 @@ public class LearningServiceImpl implements LearningService {
         Submission submission = Submission.builder()
                 .submissionId("SUB_" + System.currentTimeMillis())
                 .aqId(lessonId)
-                .studentId(String.valueOf(studentId))
+                .studentId(studentId)
                 .submittedAt(LocalDateTime.now())
                 .answers(answersJson) // Đã an toàn sau khi try-catch
                 .attemptCount(1)
@@ -133,7 +133,7 @@ public class LearningServiceImpl implements LearningService {
         Submission submission = Submission.builder()
                 .submissionId("SUB_" + System.currentTimeMillis())
                 .aqId(lessonId)
-                .studentId(String.valueOf(studentId))
+                .studentId(studentId)
                 .submittedAt(LocalDateTime.now())
                 .fileUrl(request.getFileUrl())
                 .answers(request.getStudentNotes())
