@@ -1,16 +1,17 @@
 // service/impl/LearningServiceImpl.java
 package com.example.lms_api.service.impl;
 
+import com.example.lms_api.dto.request.learning.CreateDiscussionRequest;
 import com.example.lms_api.dto.request.learning.SubmitAssignmentRequest;
 import com.example.lms_api.dto.request.learning.SubmitQuizRequest;
 import com.example.lms_api.dto.request.learning.SyncVideoRequest;
+import com.example.lms_api.dto.response.learning.DiscussionResponse;
 import com.example.lms_api.dto.response.learning.ProgressResponse;
-import com.example.lms_api.entity.CourseContent;
-import com.example.lms_api.entity.Lesson;
-import com.example.lms_api.entity.Submission;
+import com.example.lms_api.entity.*;
 import com.example.lms_api.entity.document.StudentProgress;
 import com.example.lms_api.mapper.LearningMapper;
 import com.example.lms_api.repository.CourseContentRepository;
+import com.example.lms_api.repository.GradebookRepository;
 import com.example.lms_api.repository.StudentProgressRepository;
 import com.example.lms_api.repository.SubmissionRepository;
 import com.example.lms_api.service.LearningService;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -38,24 +40,103 @@ public class LearningServiceImpl implements LearningService {
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
     // THÊM DÒNG NÀY ĐỂ QUERY TÌM STUDENT:
     private final com.example.lms_api.repository.StudentRepository studentRepository;
+    private final GradebookRepository gradebookRepository;
+    // Đầu file LearningServiceImpl.java, thêm dòng này dưới các Repository cũ:
+    private final com.example.lms_api.repository.DiscussionRepository discussionRepository;
+
+    // Kéo xuống cuối file và thêm 2 hàm này:
+    @Override
+    public List<DiscussionResponse> getLessonDiscussions(Integer courseId, String lessonId) {
+        List<Discussion> discussions = discussionRepository.findByCourseIdAndLessonIdOrderByCreatedAtDesc(courseId, lessonId);
+
+        List<DiscussionResponse> responses = new ArrayList<>();
+        for (Discussion d : discussions) {
+
+            // Xử lý lấy tên người đăng bài (móc từ bảng Student/Teacher trong DB của bạn)
+            // Tạm thời lấy ID làm tên mặc định, bạn có thể gọi userRepository.findById(d.getAuthorId()) để lấy tên thật
+            String authorName = "Học viên #" + d.getAuthorId();
+
+            List<DiscussionResponse.ReplyResponse> replyResponses = new ArrayList<>();
+            if (d.getReplies() != null) {
+                for (Discussion.Reply r : d.getReplies()) {
+                    replyResponses.add(DiscussionResponse.ReplyResponse.builder()
+                            .replyId(r.getReplyId())
+                            .authorId(r.getAuthorId())
+                            .authorName("Người dùng #" + r.getAuthorId()) // Tương tự, ánh xạ tên thật ở đây
+                            .authorRole(r.getAuthorRole())
+                            .content(r.getContent())
+                            .isAccepted(r.isAccepted())
+                            .upvotes(r.getUpvotes())
+                            .createdAt(r.getCreatedAt())
+                            .build());
+                }
+            }
+
+            responses.add(DiscussionResponse.builder()
+                    .id(d.getId())
+                    .lessonId(d.getLessonId())
+                    .authorId(d.getAuthorId())
+                    .authorName(authorName)
+                    .authorRole(d.getAuthorRole())
+                    .title(d.getTitle())
+                    .content(d.getContent())
+                    .codeSnippet(d.getCodeSnippet())
+                    .upvotes(d.getUpvotes())
+                    .replyCount(d.getReplies() != null ? d.getReplies().size() : 0)
+                    .createdAt(d.getCreatedAt())
+                    .replies(replyResponses)
+                    .build());
+        }
+        return responses;
+    }
+
+    @Override
+    public DiscussionResponse createDiscussion(Integer courseId, String lessonId, CreateDiscussionRequest request) {
+        // Hàm getCurrentStudentId() bạn đã viết sẵn từ trước
+        Integer studentId = getCurrentStudentId();
+
+        Discussion discussion = Discussion.builder()
+                .courseId(courseId)
+                .lessonId(lessonId)
+                .authorId(studentId)
+                .authorRole("STUDENT")
+                .title(request.getTitle())
+                .content(request.getContent())
+                .codeSnippet(request.getCodeSnippet())
+                .tags(request.getTags())
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .views(0)
+                .upvotes(0)
+                .isPinned(false)
+                .isSolved(false)
+                .build();
+
+        discussionRepository.save(discussion);
+
+        // Cập nhật xong thì gọi lại hàm lấy list để trả về 1 object đầy đủ format DTO
+        return getLessonDiscussions(courseId, lessonId).stream()
+                .filter(d -> d.getId().equals(discussion.getId()))
+                .findFirst()
+                .orElse(null);
+    }
 
     @Override
     @Transactional
     public ProgressResponse submitQuiz(Integer courseId, String lessonId, SubmitQuizRequest request) {
         Integer studentId = getCurrentStudentId();
 
-        // 1. TÌM BÀI QUIZ TỪ MONGODB (Thay thế hàm findLesson)
+        // 1. Tìm cấu trúc bài học trong MongoDB
         CourseContent courseContent = courseContentRepository.findByCourseId(courseId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy nội dung khóa học"));
 
-        // Dùng Stream để tìm Lesson trong tất cả các Module
         Lesson quizLesson = courseContent.getModules().stream()
                 .flatMap(m -> m.getLessons().stream())
                 .filter(l -> l.getLessonId().equals(lessonId))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bài học ID: " + lessonId));
 
-        // 2. LOGIC CHẤM ĐIỂM
+        // 2. Thực hiện logic chấm điểm tự động
         int correctCount = 0;
         int totalQuestions = 0;
 
@@ -64,44 +145,83 @@ public class LearningServiceImpl implements LearningService {
             totalQuestions = questions.size();
         }
 
-        Map<String, String> studentAnswers = request.getStudentAnswers();
+        Map<String, String> rawStudentAnswers = request.getStudentAnswers();
+        Map<String, String> cleanStudentAnswers = new HashMap<>();
 
-        if (questions != null && studentAnswers != null) {
+        // 🟢 FIX LỖI GSON: Làm sạch dữ liệu từ Client gửi lên (Xóa đuôi ".0" nếu có)
+        if (rawStudentAnswers != null) {
+            for (Map.Entry<String, String> entry : rawStudentAnswers.entrySet()) {
+                String cleanKey = entry.getKey().endsWith(".0") ? entry.getKey().replace(".0", "") : entry.getKey();
+                String cleanVal = entry.getValue().endsWith(".0") ? entry.getValue().replace(".0", "") : entry.getValue();
+                cleanStudentAnswers.put(cleanKey, cleanVal);
+            }
+        }
+
+        if (questions != null) {
             for (Map<String, Object> q : questions) {
-                String qId = String.valueOf(q.get("id"));
-                String correctAnswer = String.valueOf(q.get("correctAnswer"));
-                String studentAnswer = studentAnswers.get(qId);
+                // Đọc ID và Đáp án từ DB, cũng khử đuôi ".0" để đồng bộ
+                String qIdRaw = String.valueOf(q.get("id"));
+                String qId = qIdRaw.endsWith(".0") ? qIdRaw.replace(".0", "") : qIdRaw;
 
+                String correctRaw = String.valueOf(q.get("correctAnswer"));
+                String correctAnswer = correctRaw.endsWith(".0") ? correctRaw.replace(".0", "") : correctRaw;
+
+                // Lấy đáp án học viên bằng Key đã làm sạch
+                String studentAnswer = cleanStudentAnswers.get(qId);
+
+                // Đối chiếu
                 if (studentAnswer != null && studentAnswer.equals(correctAnswer)) {
                     correctCount++;
                 }
             }
         }
 
+        // Tính điểm thang 100
         int finalScore = (totalQuestions == 0) ? 0 : (correctCount * 100) / totalQuestions;
-        Integer passingScore = (Integer) quizLesson.getContent().getOrDefault("passingScore", 50);
-        boolean isPassed = finalScore >= passingScore;
 
-        // Xử lý bắt lỗi cho ObjectMapper để hết gạch đỏ
-        String answersJson = "{}";
-        try {
-            answersJson = objectMapper.writeValueAsString(studentAnswers);
-        } catch (Exception e) {
-            System.err.println("Lỗi parse JSON đáp án: " + e.getMessage());
+        // 🟢 FIX LỖI ÉP KIỂU: Xử lý an toàn biến passingScore từ MongoDB
+        Object passScoreObj = quizLesson.getContent().get("passingScore");
+        int passingScore = 50; // Mặc định 50 điểm là qua môn
+        if (passScoreObj instanceof Number) {
+            passingScore = ((Number) passScoreObj).intValue();
+        } else if (passScoreObj instanceof String) {
+            try { passingScore = Integer.parseInt((String) passScoreObj); } catch (Exception ignored) {}
         }
 
-        // 3. LƯU BÀI LÀM VÀO POSTGRESQL
+        boolean isPassed = finalScore >= passingScore;
+
+        String answersJson = "{}";
+        try {
+            answersJson = objectMapper.writeValueAsString(rawStudentAnswers);
+        } catch (Exception e) {
+            System.err.println("Lỗi xử lý JSON: " + e.getMessage());
+        }
+
+        // 3. Lưu thông tin bài làm vào bảng SQL Submission
+        String submissionId = "SUB_" + System.currentTimeMillis();
         Submission submission = Submission.builder()
-                .submissionId("SUB_" + System.currentTimeMillis())
+                .submissionId(submissionId)
                 .aqId(lessonId)
-                .studentId(String.valueOf(studentId))
+                .studentId(studentId)
                 .submittedAt(LocalDateTime.now())
-                .answers(answersJson) // Đã an toàn sau khi try-catch
+                .answers(answersJson)
                 .attemptCount(1)
                 .build();
         submissionRepository.save(submission);
 
-        // 4. CẬP NHẬT TIẾN ĐỘ LÊN MONGODB
+        // 4. CHẤM ĐIỂM VÀ LƯU VÀO BẢNG SỔ ĐIỂM (GRADEBOOK SQL)
+        Gradebook gradebook = Gradebook.builder()
+                .gradeId("GRD_" + System.currentTimeMillis())
+                .submissionId(submissionId)
+                .score((double) finalScore)
+                .isPassed(isPassed)
+                .feedback(isPassed ? "Hệ thống tự động chấm: Đạt yêu cầu." : "Hệ thống tự động chấm: Chưa đạt yêu cầu.")
+                .gradedAt(LocalDateTime.now())
+                .gradedBy("SYSTEM_AUTO")
+                .build();
+        gradebookRepository.save(gradebook);
+
+        // 5. Cập nhật đồng bộ dữ liệu tiến độ vào MongoDB
         StudentProgress progress = getOrCreateProgress(studentId, courseId);
         StudentProgress.LessonProgressData lessonData = getOrCreateLessonProgress(progress, lessonId, 0);
 
@@ -119,7 +239,33 @@ public class LearningServiceImpl implements LearningService {
 
         lessonData.setScore(finalScore);
         progress.getProgress().setCurrentLesson(lessonId);
+        updateOverallProgress(progress, courseId);
         progressRepository.save(progress);
+
+        return learningMapper.toResponse(progress);
+    }
+
+    @Override
+    public ProgressResponse getProgress(Integer courseId) {
+        Integer studentId = getCurrentStudentId();
+        StudentProgress progress = getOrCreateProgress(studentId, courseId);
+
+        // 🟢 ĐỒNG BỘ NGƯỢC: Kiểm tra bảng Gradebook SQL để cập nhật điểm chính xác tuyệt đối lên UI
+        if (progress.getLessonProgress() != null) {
+            for (StudentProgress.LessonProgressData lp : progress.getLessonProgress()) {
+                gradebookRepository.findLatestGradeByStudentAndLesson(studentId, lp.getLessonId())
+                        .ifPresent(grade -> {
+                            lp.setScore(grade.getScore().intValue());
+                            if (grade.getIsPassed()) {
+                                lp.setStatus("completed");
+                                lp.setProgressPercent(100.0);
+                                if (!progress.getProgress().getCompletedLessons().contains(lp.getLessonId())) {
+                                    progress.getProgress().getCompletedLessons().add(lp.getLessonId());
+                                }
+                            }
+                        });
+            }
+        }
 
         return learningMapper.toResponse(progress);
     }
@@ -133,7 +279,7 @@ public class LearningServiceImpl implements LearningService {
         Submission submission = Submission.builder()
                 .submissionId("SUB_" + System.currentTimeMillis())
                 .aqId(lessonId)
-                .studentId(String.valueOf(studentId))
+                .studentId(studentId)
                 .submittedAt(LocalDateTime.now())
                 .fileUrl(request.getFileUrl())
                 .answers(request.getStudentNotes())
@@ -155,6 +301,7 @@ public class LearningServiceImpl implements LearningService {
         }
 
         progress.getProgress().setCurrentLesson(lessonId);
+        updateOverallProgress(progress, courseId);
         progressRepository.save(progress);
 
         return learningMapper.toResponse(progress);
@@ -185,11 +332,6 @@ public class LearningServiceImpl implements LearningService {
         return studentRepository.findByUser_Id(userId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hồ sơ học viên cho user này!"))
                 .getStudentId();
-    }
-
-    public ProgressResponse getProgress(Integer courseId) {
-        StudentProgress progress = getOrCreateProgress(getCurrentStudentId(), courseId);
-        return learningMapper.toResponse(progress);
     }
 
     public void syncVideoProgress(Integer courseId, String lessonId, SyncVideoRequest request) {
@@ -254,4 +396,17 @@ public class LearningServiceImpl implements LearningService {
                 .build();
     }
 
+    private void updateOverallProgress(StudentProgress progress, Integer courseId) {
+        CourseContent courseContent = courseContentRepository.findByCourseId(courseId).orElse(null);
+
+        // Dùng luôn totalLessons từ Metadata mà bạn đã thiết kế sẵn, bỏ qua vòng lặp For!
+        if (courseContent != null && courseContent.getMetadata() != null) {
+            int totalLessons = courseContent.getMetadata().getTotalLessons();
+
+            if (totalLessons > 0) {
+                double percent = (progress.getProgress().getCompletedLessons().size() * 100.0) / totalLessons;
+                progress.getProgress().setOverallProgress(Math.round(percent * 100.0) / 100.0);
+            }
+        }
+    }
 }
