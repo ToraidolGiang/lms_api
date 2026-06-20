@@ -14,4 +14,5 @@ public class AuthResponse {
     private boolean isActive;
     private Integer teacherId;  // null nếu không phải TEACHER
     private Integer studentId;
+    private String imageUrl;
 }
