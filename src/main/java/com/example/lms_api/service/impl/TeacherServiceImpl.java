@@ -24,8 +24,8 @@ public class TeacherServiceImpl implements TeacherService {
     // 2. Hàm lấy theo ID
     @Override
     @Transactional(readOnly = true)
-    public TeacherResponse getTeacherById(Integer teacherId) {
-        Teacher teacher = teacherRepository.findByUserId(teacherId)
+    public TeacherResponse findByTeacherId(Integer teacherId) {
+        Teacher teacher = teacherRepository.findByTeacherId(teacherId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy giáo viên với ID: " + teacherId));
         return teacherMapper.toResponse(teacher);
     }
