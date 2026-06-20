@@ -41,6 +41,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/courses/*/reviews/*/vote").authenticated()
                         .requestMatchers("/error").permitAll()
                         // Ai cũng xem được review//.requestMatchers("/api/teacher/**").permitAll()
+                        .requestMatchers("/api/v1/learn/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
