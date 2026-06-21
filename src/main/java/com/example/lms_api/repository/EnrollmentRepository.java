@@ -12,4 +12,9 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Integer>
     boolean existsByCourse_CourseIdAndStudent_StudentIdAndAccessStatus(Integer courseId, Integer studentId, String accessStatus);
 
     Optional<Enrollment> findFirstByCourse_CourseIdAndStudent_StudentIdOrderByEnrollDateDesc(Integer courseId, Integer studentId);
+
+    // MỚI: dùng cho GET /enrollment-status — chỉ lấy enrollment đang Active,
+    // để có enrollmentId hợp lệ gửi kèm khi tạo review.
+    Optional<Enrollment> findFirstByCourse_CourseIdAndStudent_StudentIdAndAccessStatusOrderByEnrollDateDesc(
+            Integer courseId, Integer studentId, String accessStatus);
 }

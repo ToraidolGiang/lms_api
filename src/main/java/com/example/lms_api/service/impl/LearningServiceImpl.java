@@ -15,11 +15,10 @@ import com.example.lms_api.repository.GradebookRepository;
 import com.example.lms_api.repository.StudentProgressRepository;
 import com.example.lms_api.repository.SubmissionRepository;
 import com.example.lms_api.service.LearningService;
+import com.example.lms_api.util.SecurityUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -43,6 +42,7 @@ public class LearningServiceImpl implements LearningService {
     private final GradebookRepository gradebookRepository;
     // Đầu file LearningServiceImpl.java, thêm dòng này dưới các Repository cũ:
     private final com.example.lms_api.repository.DiscussionRepository discussionRepository;
+    private final SecurityUtil securityUtil;
 
     // Kéo xuống cuối file và thêm 2 hàm này:
     @Override
@@ -93,7 +93,7 @@ public class LearningServiceImpl implements LearningService {
     @Override
     public DiscussionResponse createDiscussion(Integer courseId, String lessonId, CreateDiscussionRequest request) {
         // Hàm getCurrentStudentId() bạn đã viết sẵn từ trước
-        Integer studentId = getCurrentStudentId();
+        Integer studentId = securityUtil.getCurrentStudentId();
 
         Discussion discussion = Discussion.builder()
                 .courseId(courseId)
@@ -124,7 +124,7 @@ public class LearningServiceImpl implements LearningService {
     @Override
     @Transactional
     public ProgressResponse submitQuiz(Integer courseId, String lessonId, SubmitQuizRequest request) {
-        Integer studentId = getCurrentStudentId();
+        Integer studentId = securityUtil.getCurrentStudentId();
 
         // 1. Tìm cấu trúc bài học trong MongoDB
         CourseContent courseContent = courseContentRepository.findByCourseId(courseId)
@@ -247,24 +247,36 @@ public class LearningServiceImpl implements LearningService {
 
     @Override
     public ProgressResponse getProgress(Integer courseId) {
-        Integer studentId = getCurrentStudentId();
+        Integer studentId = securityUtil.getCurrentStudentId();
         StudentProgress progress = getOrCreateProgress(studentId, courseId);
+        boolean hasChanges = false;
 
         // 🟢 ĐỒNG BỘ NGƯỢC: Kiểm tra bảng Gradebook SQL để cập nhật điểm chính xác tuyệt đối lên UI
         if (progress.getLessonProgress() != null) {
             for (StudentProgress.LessonProgressData lp : progress.getLessonProgress()) {
-                gradebookRepository.findLatestGradeByStudentAndLesson(studentId, lp.getLessonId())
-                        .ifPresent(grade -> {
-                            lp.setScore(grade.getScore().intValue());
-                            if (grade.getIsPassed()) {
-                                lp.setStatus("completed");
-                                lp.setProgressPercent(100.0);
-                                if (!progress.getProgress().getCompletedLessons().contains(lp.getLessonId())) {
-                                    progress.getProgress().getCompletedLessons().add(lp.getLessonId());
-                                }
-                            }
-                        });
+                var gradeOpt = gradebookRepository.findLatestGradeByStudentAndLesson(studentId, lp.getLessonId());
+                if (gradeOpt.isPresent()) {
+                    var grade = gradeOpt.get();
+                    Integer newScore = grade.getScore().intValue();
+                    if (!newScore.equals(lp.getScore())) {
+                        lp.setScore(newScore);
+                        hasChanges = true;
+                    }
+                    if (grade.getIsPassed() && !"completed".equals(lp.getStatus())) {
+                        lp.setStatus("completed");
+                        lp.setProgressPercent(100.0);
+                        if (!progress.getProgress().getCompletedLessons().contains(lp.getLessonId())) {
+                            progress.getProgress().getCompletedLessons().add(lp.getLessonId());
+                        }
+                        hasChanges = true;
+                    }
+                }
             }
+        }
+
+        if (hasChanges) {
+            updateOverallProgress(progress, courseId);
+            progressRepository.save(progress);
         }
 
         return learningMapper.toResponse(progress);
@@ -273,7 +285,7 @@ public class LearningServiceImpl implements LearningService {
     @Override
     @Transactional
     public ProgressResponse submitAssignment(Integer courseId, String lessonId, SubmitAssignmentRequest request) {
-        Integer studentId = getCurrentStudentId();
+        Integer studentId = securityUtil.getCurrentStudentId();
 
         // 1. Lưu link Drive/Cloudinary vào PostgreSQL
         Submission submission = Submission.builder()
@@ -319,36 +331,32 @@ public class LearningServiceImpl implements LearningService {
                 });
     }
 
-    private Integer getCurrentStudentId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getName() == null) {
-            throw new RuntimeException("Unauthenticated");
-        }
-
-        // 1. Lấy User ID từ Token JWT
-        Integer userId = Integer.parseInt(auth.getName());
-
-        // 2. Chọc vào DB lấy ra Student ID thực sự
-        return studentRepository.findByUser_Id(userId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy hồ sơ học viên cho user này!"))
-                .getStudentId();
-    }
 
     public void syncVideoProgress(Integer courseId, String lessonId, SyncVideoRequest request) {
-        StudentProgress progress = getOrCreateProgress(getCurrentStudentId(), courseId);
+        if (request == null || request.getTotalSeconds() == null || request.getTotalSeconds() <= 0) {
+            throw new IllegalArgumentException("Tổng số giây video không hợp lệ!");
+        }
 
-        StudentProgress.LessonProgressData lessonData = progress.getLessonProgress().stream()
-                .filter(l -> l.getLessonId().equals(lessonId))
-                .findFirst()
-                .orElseGet(() -> createNewLessonProgress(lessonId, request.getTotalSeconds()));
+        StudentProgress progress = getOrCreateProgress(securityUtil.getCurrentStudentId(), courseId);
+        StudentProgress.LessonProgressData lessonData = getOrCreateLessonProgress(progress, lessonId, request.getTotalSeconds());
+
+        // Đảm bảo totalDuration được cập nhật nếu trước đó chưa có hoặc khác biệt
+        if (lessonData.getTotalDuration() == null || lessonData.getTotalDuration() <= 0) {
+            lessonData.setTotalDuration(request.getTotalSeconds());
+        }
+
+        int currentSec = request.getCurrentSeconds() != null ? request.getCurrentSeconds() : 0;
+        double percent = (currentSec * 100.0) / request.getTotalSeconds();
+        if (percent > 100.0) percent = 100.0;
+        if (percent < 0.0) percent = 0.0;
 
         // Cập nhật thời gian xem
-        lessonData.setWatchedDuration(request.getCurrentSeconds());
-        lessonData.setProgressPercent((request.getCurrentSeconds() * 100.0) / request.getTotalSeconds());
+        lessonData.setWatchedDuration(currentSec);
+        lessonData.setProgressPercent(percent);
         lessonData.setLastAccessedAt(LocalDateTime.now());
 
-        // Logic Auto-Complete: Xem > 90% thì tính là hoàn thành
-        if (lessonData.getProgressPercent() >= 90.0 && !"completed".equals(lessonData.getStatus())) {
+        // Logic Auto-Complete: Xem >= 90% thì tính là hoàn thành
+        if (percent >= 90.0 && !"completed".equals(lessonData.getStatus())) {
             lessonData.setStatus("completed");
             lessonData.setCompletedAt(LocalDateTime.now());
 
@@ -357,14 +365,11 @@ public class LearningServiceImpl implements LearningService {
             }
         }
 
-        if (!progress.getLessonProgress().contains(lessonData)) {
-            progress.getLessonProgress().add(lessonData);
-        }
-
         progress.getProgress().setCurrentLesson(lessonId);
         progress.setUpdatedAt(LocalDateTime.now());
 
-        // TODO: Cập nhật overallProgress dựa trên tổng số bài học của khóa học
+        // Cập nhật overallProgress dựa trên tổng số bài học của khóa học trước khi lưu
+        updateOverallProgress(progress, courseId);
         progressRepository.save(progress);
     }
 
@@ -398,15 +403,23 @@ public class LearningServiceImpl implements LearningService {
 
     private void updateOverallProgress(StudentProgress progress, Integer courseId) {
         CourseContent courseContent = courseContentRepository.findByCourseId(courseId).orElse(null);
+        if (courseContent == null) return;
 
-        // Dùng luôn totalLessons từ Metadata mà bạn đã thiết kế sẵn, bỏ qua vòng lặp For!
-        if (courseContent != null && courseContent.getMetadata() != null) {
-            int totalLessons = courseContent.getMetadata().getTotalLessons();
+        int totalLessons = 0;
+        if (courseContent.getMetadata() != null && courseContent.getMetadata().getTotalLessons() > 0) {
+            totalLessons = courseContent.getMetadata().getTotalLessons();
+        } else if (courseContent.getModules() != null) {
+            // Fallback: Đếm trực tiếp từ danh sách các bài học trong Modules
+            totalLessons = courseContent.getModules().stream()
+                    .filter(m -> m.getLessons() != null)
+                    .mapToInt(m -> m.getLessons().size())
+                    .sum();
+        }
 
-            if (totalLessons > 0) {
-                double percent = (progress.getProgress().getCompletedLessons().size() * 100.0) / totalLessons;
-                progress.getProgress().setOverallProgress(Math.round(percent * 100.0) / 100.0);
-            }
+        if (totalLessons > 0) {
+            double percent = (progress.getProgress().getCompletedLessons().size() * 100.0) / totalLessons;
+            if (percent > 100.0) percent = 100.0;
+            progress.getProgress().setOverallProgress(Math.round(percent * 100.0) / 100.0);
         }
     }
 }

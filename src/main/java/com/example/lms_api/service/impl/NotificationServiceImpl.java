@@ -7,8 +7,8 @@ import com.example.lms_api.mapper.NotificationMapper;
 import com.example.lms_api.repository.NotificationRepository;
 import com.example.lms_api.repository.UserRepository;
 import com.example.lms_api.service.NotificationService;
+import com.example.lms_api.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,12 +22,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final NotificationMapper notificationMapper;
-
-    // KỸ THUẬT QUAN TRỌNG: Lấy userId của người đang gọi API từ JWT
-    private Integer getCurrentUserId() {
-        String userIdStr = SecurityContextHolder.getContext().getAuthentication().getName();
-        return Integer.parseInt(userIdStr); // Ép kiểu sang số nguyên
-    }
+    private final SecurityUtil securityUtil;
 
     @Transactional
     @Override
@@ -45,7 +40,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Transactional(readOnly = true)
     public List<NotificationResponse> getMyNotifications() {
         // Chỉ lấy thông báo của ĐÚNG CÁI THẰNG đang cầm JWT
-        Integer currentUserId = getCurrentUserId();
+        Integer currentUserId = securityUtil.getCurrentUserId();
         return notificationRepository.findByUserIdOrderByCreatedAtDesc(currentUserId)
                 .stream()
                 .map(notificationMapper::toResponse)
@@ -55,7 +50,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     @Transactional
     public void markAsRead(String notificationId) {
-        Integer currentUserId = getCurrentUserId();
+        Integer currentUserId = securityUtil.getCurrentUserId();
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy thông báo"));
 
