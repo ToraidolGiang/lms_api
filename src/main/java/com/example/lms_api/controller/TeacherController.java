@@ -2,7 +2,6 @@ package com.example.lms_api.controller;
 
 import com.example.lms_api.dto.request.TeacherRequest;
 import com.example.lms_api.dto.response.TeacherResponse;
-import com.example.lms_api.service.TeacherService;
 import com.example.lms_api.service.impl.TeacherServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +21,7 @@ public class TeacherController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<TeacherResponse> getTeacherById(@PathVariable("id") Integer teacherId) {
-        TeacherResponse response = teacherService.getTeacherById(teacherId);
+        TeacherResponse response = teacherService.findByTeacherId(teacherId);
         return ResponseEntity.ok(response); // Trả về HTTP Status 200 OK
     }
 

@@ -16,6 +16,7 @@ import com.example.lms_api.repository.UserRepository;
 import com.example.lms_api.service.AuthService;
 import com.example.lms_api.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Service;
@@ -88,7 +89,8 @@ public class AuthServiceImpl implements AuthService {
                 .userId(user.getId())
                 .role(user.getRole().name())
                 .teacherId(teacherId)   // ← thêm
-                .studentId(studentId)   // ← thêm
+                .studentId(studentId)
+                .imageUrl(user.getImageUrl())// ← thêm
                 .build();
     }
 
@@ -129,7 +131,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public AuthResponse register(RegisterRequest request) {
+    public AuthResponse register(@NotNull RegisterRequest request) {
 
         // 1. Kiểm tra trùng username / email
         if (userRepository.existsByUsername(request.getUsername())) {
