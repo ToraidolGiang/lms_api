@@ -18,5 +18,9 @@ public class ReviewRequest {
 
     private List<String> pros;
     private List<String> cons;
-    private Integer enrollmentId;
+
+    // enrollmentId KHÔNG còn nhận từ client. BE tự tra theo
+    // (courseId từ path) + (studentId từ JWT) + accessStatus = "Active".
+    // Lý do: tránh giả mạo enrollmentId, và đồng nhất với việc bỏ studentId
+    // truyền tay (xem CourseReviewController).
 }

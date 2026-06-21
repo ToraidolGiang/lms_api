@@ -12,7 +12,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CourseReview {
+public class    CourseReview {
     @Id
     private String id;
     private Integer courseId;
@@ -41,8 +41,15 @@ public class CourseReview {
     @AllArgsConstructor
     @Builder
     public static class HelpfulStats {
+        @Builder.Default
         private Integer upvotes = 0;
+        @Builder.Default
         private Integer downvotes = 0;
+        @Builder.Default
         private List<Integer> votedBy = new ArrayList<>();
+        @Builder.Default
+        private List<Integer> votedUpBy = new ArrayList<>();
+        @Builder.Default
+        private List<Integer> votedDownBy = new ArrayList<>();
     }
 }

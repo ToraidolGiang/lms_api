@@ -108,7 +108,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         User user = storedToken.getUser();
-        String newAccessToken = jwtUtil.generateAccessToken(user.getId().toString(), user.getEmail(), user.getRole().name());
+        String newAccessToken = jwtUtil.generateAccessToken(user.getId().toString(), user.getUsername(), user.getRole().name());
 
         return AuthResponse.builder()
                 .accessToken(newAccessToken)

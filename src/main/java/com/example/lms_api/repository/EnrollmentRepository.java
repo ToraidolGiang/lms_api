@@ -24,6 +24,11 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Integer>
     @Query("SELECT COALESCE(SUM(e.course.price), 0) FROM Enrollment e WHERE e.course.teacher.teacherId = :teacherId")
     Double sumRevenueByTeacherId(@Param("teacherId") Integer teacherId);
 
+    // MỚI: dùng cho GET /enrollment-status — chỉ lấy enrollment đang Active,
+    // để có enrollmentId hợp lệ gửi kèm khi tạo review.
+    Optional<Enrollment> findFirstByCourse_CourseIdAndStudent_StudentIdAndAccessStatusOrderByEnrollDateDesc(
+            Integer courseId, Integer studentId, String accessStatus);
+
     @Query("""
         SELECT COUNT(DISTINCT e.student.id)
         FROM Enrollment e

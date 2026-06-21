@@ -18,6 +18,10 @@ public class ReviewResponse {
     private List<String> pros;
     private List<String> cons;
     private Integer upvotes;
+    private Integer downvotes;
+    private List<Integer> votedBy;
+    private List<Integer> votedUpBy;
+    private List<Integer> votedDownBy;
     private Boolean isVerified;
     private LocalDateTime createdAt;
 }

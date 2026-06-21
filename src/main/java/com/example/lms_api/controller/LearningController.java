@@ -46,4 +46,19 @@ public class LearningController {
             @RequestBody SubmitAssignmentRequest request) {
         return ResponseEntity.ok(learningService.submitAssignment(courseId, lessonId, request));
     }
+
+    @GetMapping("/lessons/{lessonId}/discussions")
+    public ResponseEntity<java.util.List<com.example.lms_api.dto.response.learning.DiscussionResponse>> getDiscussions(
+            @PathVariable Integer courseId,
+            @PathVariable String lessonId) {
+        return ResponseEntity.ok(learningService.getLessonDiscussions(courseId, lessonId));
+    }
+
+    @PostMapping("/lessons/{lessonId}/discussions")
+    public ResponseEntity<com.example.lms_api.dto.response.learning.DiscussionResponse> createDiscussion(
+            @PathVariable Integer courseId,
+            @PathVariable String lessonId,
+            @RequestBody com.example.lms_api.dto.request.learning.CreateDiscussionRequest request) {
+        return ResponseEntity.ok(learningService.createDiscussion(courseId, lessonId, request));
+    }
 }

@@ -37,7 +37,7 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("Không tìm thấy user để cập nhật avatar");
         }
         // Reload lại để trả về data mới
-        User user = userRepository.findById(String.valueOf(userId))
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
         return toResponse(user);
     }
