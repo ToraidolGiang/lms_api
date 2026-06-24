@@ -6,13 +6,16 @@ import com.example.lms_api.entity.Category;
 import com.example.lms_api.entity.Course;
 import com.example.lms_api.entity.Teacher;
 import com.example.lms_api.mapper.CourseMapper;
+import com.example.lms_api.projection.CourseSummaryProjection;
 import com.example.lms_api.repository.CategoryRepository;
 import com.example.lms_api.repository.CourseRepository;
+import com.example.lms_api.repository.CourseReviewRepository;
 import com.example.lms_api.repository.TeacherRepository;
 import com.example.lms_api.service.CourseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.lms_api.service.CourseContentService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,6 +29,9 @@ public class CourseServiceImpl implements CourseService {
     private final CategoryRepository categoryRepository;
     private final TeacherRepository teacherRepository;
     private final CourseMapper courseMapper;             // ← inject mapper
+    private final CourseContentService courseContentService;
+    private final CourseReviewServiceImpl courseReviewService;
+
 
     // ── Tạo mới ──────────────────────────────────────────────
     @Override
@@ -114,5 +120,28 @@ public class CourseServiceImpl implements CourseService {
                 .stream()
                 .map(courseMapper::toResponse)     // ← dùng mapper
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<CourseResponse> getExploreCourses() {
+        // 1. Gọi query SQL để lấy thông tin tổng hợp
+        List<CourseSummaryProjection> projections = courseRepository.getExploreCourses();
+
+        // 2. Chuyển đổi từ Projection sang Response DTO
+        return projections.stream().map(p -> {
+            CourseResponse response = new CourseResponse();
+            response.setCourseId(p.getCourseId());
+            response.setTitle(p.getCourseTitle());
+            response.setPrice(p.getPrice());
+            response.setImageUrl(p.getImageUrl());
+            response.setTeacherName(p.getTeacherName());
+            response.setCategoryName(p.getCategoryName());
+            response.setTotalStudents(p.getTotalStudents());
+            Integer totalLessons = courseContentService.getTotalLessons(p.getCourseId());
+            response.setTotalLessons(totalLessons);
+            Double rating = courseReviewService.getAverageRating(p.getCourseId());
+            response.setAverageRating(rating);
+            return response;
+        }).collect(Collectors.toList());
     }
 }

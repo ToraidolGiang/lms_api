@@ -24,4 +24,6 @@ public interface CourseReviewService {
      * (nếu có) của student hiện tại (JWT) cho courseId này.
      */
     EnrollmentStatusResponse getEnrollmentStatus(Integer courseId);
+
+    Double getAverageRating(Integer courseId);
 }

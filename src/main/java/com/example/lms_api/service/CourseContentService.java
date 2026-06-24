@@ -38,4 +38,5 @@ public interface CourseContentService {
                                        String lessonId, LessonRequest request);
 
     CourseContentResponse deleteLesson(Integer courseId, String moduleId, String lessonId);
+    Integer getTotalLessons(Integer courseId);
 }

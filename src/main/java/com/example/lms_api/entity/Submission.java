@@ -32,4 +32,7 @@ public class Submission {
 
     @Column(name = "attemptcount")
     private Integer attemptCount;
+
+    @Column(name = "type")
+    private String type;
 }
