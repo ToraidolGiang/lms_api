@@ -15,4 +15,7 @@ public interface GradebookRepository extends JpaRepository<Gradebook, String> {
             "WHERE s.studentid = :studentId AND s.aqid = :lessonId " +
             "ORDER BY g.gradedat DESC LIMIT 1", nativeQuery = true)
     Optional<Gradebook> findLatestGradeByStudentAndLesson(@Param("studentId") Integer studentId, @Param("lessonId") String lessonId);
+    // Lấy grade mới nhất theo submissionId (dùng khi tính quizAvg)
+    Optional<Gradebook> findTopBySubmissionIdOrderByGradedAtDesc(String submissionId);
+
 }

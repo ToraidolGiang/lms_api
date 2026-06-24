@@ -10,10 +10,7 @@ import com.example.lms_api.dto.response.learning.ProgressResponse;
 import com.example.lms_api.entity.*;
 import com.example.lms_api.entity.document.StudentProgress;
 import com.example.lms_api.mapper.LearningMapper;
-import com.example.lms_api.repository.CourseContentRepository;
-import com.example.lms_api.repository.GradebookRepository;
-import com.example.lms_api.repository.StudentProgressRepository;
-import com.example.lms_api.repository.SubmissionRepository;
+import com.example.lms_api.repository.*;
 import com.example.lms_api.service.LearningService;
 import com.example.lms_api.util.SecurityUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,6 +37,7 @@ public class LearningServiceImpl implements LearningService {
     // THÊM DÒNG NÀY ĐỂ QUERY TÌM STUDENT:
     private final com.example.lms_api.repository.StudentRepository studentRepository;
     private final GradebookRepository gradebookRepository;
+    private final CourseGradeRepository courseGradeRepository;
     // Đầu file LearningServiceImpl.java, thêm dòng này dưới các Repository cũ:
     private final com.example.lms_api.repository.DiscussionRepository discussionRepository;
     private final SecurityUtil securityUtil;
@@ -206,6 +204,7 @@ public class LearningServiceImpl implements LearningService {
                 .submittedAt(LocalDateTime.now())
                 .answers(answersJson)
                 .attemptCount(1)
+                .type("quiz")
                 .build();
         submissionRepository.save(submission);
 
@@ -296,8 +295,16 @@ public class LearningServiceImpl implements LearningService {
                 .fileUrl(request.getFileUrl())
                 .answers(request.getStudentNotes())
                 .attemptCount(1)
+                .type("assignment")
                 .build();
         submissionRepository.save(submission);
+
+        CourseGrade courseGrade = CourseGrade.builder()
+                .courseId(courseId)
+                .studentId(studentId)
+                .isMasked(false)
+                .build();
+        courseGradeRepository.save(courseGrade);
 
         // 2. Cập nhật tiến độ MongoDB
         StudentProgress progress = getOrCreateProgress(studentId, courseId);

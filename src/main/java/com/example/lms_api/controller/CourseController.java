@@ -53,4 +53,9 @@ public class CourseController {
         courseService.deleteCourse(id, deletedBy, reason);
         return ResponseEntity.ok("Xóa mềm khóa học thành công!");
     }
+
+    @GetMapping("/explore")
+    public ResponseEntity<List<CourseResponse>> getExploreCourses() {
+        return ResponseEntity.ok(courseService.getExploreCourses());
+    }
 }
