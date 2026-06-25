@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.*;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -33,14 +34,21 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/teachers/**").permitAll()
+                        .requestMatchers("/api/teacher-dashboard/**").authenticated()
                         .requestMatchers("/api/v1/categories/**").permitAll()
                         .requestMatchers("/api/v1/courses").permitAll()
                         .requestMatchers("/api/v1/courses/**").permitAll()
                         .requestMatchers("/api/payments/webhook").permitAll()
-                        .requestMatchers("/api/courses/*/reviews").permitAll()
+                        // Đọc review: công khai, ai cũng xem được.
+                        .requestMatchers(HttpMethod.GET, "/api/courses/*/reviews").permitAll()
+                        // Viết review: BẮT BUỘC đăng nhập — matcher cũ "/api/courses/*/reviews"
+                        // không phân biệt HTTP method nên trước đây POST đang vô tình permitAll().
+                        .requestMatchers(HttpMethod.POST, "/api/courses/*/reviews").authenticated()
                         .requestMatchers("/api/courses/*/reviews/*/vote").authenticated()
+                        // Check trạng thái mua khóa học: cần JWT để biết student hiện tại.
+                        .requestMatchers(HttpMethod.GET, "/api/courses/*/enrollment-status").authenticated()
                         .requestMatchers("/error").permitAll()
-                        // Ai cũng xem được review//.requestMatchers("/api/teacher/**").permitAll()
+                        .requestMatchers("/api/v1/learn/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())

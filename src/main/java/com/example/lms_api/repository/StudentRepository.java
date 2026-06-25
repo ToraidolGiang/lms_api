@@ -14,6 +14,8 @@ import java.util.Optional;
 public interface StudentRepository extends JpaRepository<Student, Integer> {
     Optional<Student> findByUser_Id(Integer userId);
     Optional<Student> findByPhone(String phone);
+    @Query("SELECT s FROM Student s WHERE s.studentId = :studentId")
+    Optional<Student> findByStudentId(@Param("studentId") Integer studentId);
     @Modifying
     @Query("UPDATE Student s SET s.firstName = :firstName, s.lastName = :lastName, " +
             "s.birthDate = :birthDate, s.location = :location, s.phone = :phone, s.school = :school " +
@@ -25,4 +27,6 @@ public interface StudentRepository extends JpaRepository<Student, Integer> {
                           @Param("location") String location,
                           @Param("phone") String phone,
                           @Param("school") String school);
+
+
 }

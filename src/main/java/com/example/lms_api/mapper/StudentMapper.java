@@ -7,15 +7,23 @@ import com.example.lms_api.entity.Student;
 import com.example.lms_api.entity.Teacher;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+import org.mapstruct.NullValuePropertyMappingStrategy;
 
 // componentModel = "spring" giúp bạn có thể @Autowired mapper này vào Service
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring",
+        nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public interface StudentMapper {
 
     // 1. Chuyển từ Entity (Student) sang DTO (StudentResponse)
     // Cần chỉ định lấy ID từ object User bên trong Student để gán cho userId của Response
     @Mapping(source = "user.id", target = "userId")
     StudentResponse toStudentResponse(Student student);
+
+    @Mapping(target = "studentId", ignore = true)
+    @Mapping(target = "user",      ignore = true)
+    @Mapping(target = "gender",    ignore = true)
+    void updateEntityFromRequest(StudentRequest request, @MappingTarget Student entity);
 
     // 2. Chuyển từ DTO (StudentRequest) sang Entity (Student)
     // Cần chỉ định lấy userId từ Request để tạo ra object User (có id) bên trong Student

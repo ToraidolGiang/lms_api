@@ -363,7 +363,7 @@ public class PostServiceImpl implements PostService {
     private User findUserByIdString(String userId) {
         try {
             Integer uid = Integer.parseInt(userId);
-            return userRepository.findById(String.valueOf(uid))
+            return userRepository.findById(uid)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found id=" + userId));
         } catch (NumberFormatException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid userId: " + userId);
@@ -379,7 +379,7 @@ public class PostServiceImpl implements PostService {
 
         try {
             Integer uid = Integer.parseInt(uidStr);
-            userRepository.findById(String.valueOf(uid)).ifPresent(u -> {
+            userRepository.findById(uid).ifPresent(u -> {
                 if (u.getRole() != null) {
                     post.setAuthorRole(u.getRole().name());
                 } else {

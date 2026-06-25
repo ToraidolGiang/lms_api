@@ -13,6 +13,7 @@ import com.example.lms_api.mapper.CourseContentMapper;
 import com.example.lms_api.repository.CourseContentRepository;
 import com.example.lms_api.service.CourseContentService;
 import lombok.RequiredArgsConstructor;
+import org.bson.Document;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -314,5 +315,25 @@ public class CourseContentServiceImpl implements CourseContentService {
                 .totalDuration(totalDuration)
                 .lastUpdated(LocalDateTime.now())
                 .build();
+    }
+    @Override
+    public Integer getTotalLessons(Integer courseId) {
+        CourseContent content = repository.findByCourseId(courseId).orElse(null);
+        if (content == null) {
+            System.out.println(">>> KẾT QUẢ: KHÔNG TÌM THẤY DOCUMENT NÀO! (Có thể sai type Int/String hoặc DB trống)");
+            System.out.println("=============================================");
+            return 0;
+        }
+        if (content.getMetadata() == null) {
+            System.out.println(">>> LỖI MAPPING: TÌM THẤY DỮ LIỆU NHƯNG TRƯỜNG 'METADATA' BỊ NULL!");
+            System.out.println("=============================================");
+            return 0;
+        }
+
+        Integer lessons = content.getMetadata().getTotalLessons();
+        System.out.println(">>> THÀNH CÔNG: TỔNG SỐ BÀI HỌC LÀ: " + lessons);
+        System.out.println("=============================================");
+
+        return lessons != null ? lessons : 0;
     }
 }

@@ -21,9 +21,10 @@ public class CourseResponse {
     /** User hiện tại đã mua/được kích hoạt khóa học hay chưa */
     private Boolean purchased;
 
+    private Integer totalStudents;
+    private Integer totalLessons;
+    private double averageRating;
     /** Active | Pending | Suspended | Completed | CourseDeleted (theo Enrollment) */
     private String accessStatus;
     // Thống kê theo từng khóa học
-    private long   enrollmentCount; // số học sinh enroll khóa này
-    private double avgRating;       // rating trung bình khóa này
 }

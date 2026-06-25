@@ -1,7 +1,6 @@
 package com.example.lms_api.service.impl;
 
 import com.example.lms_api.dto.request.PaymentCheckoutRequest;
-import com.example.lms_api.dto.request.PayOSWebhookRequest;
 import com.example.lms_api.dto.response.PaymentCheckoutResponse;
 import com.example.lms_api.dto.response.PaymentWebhookResponse;
 import com.example.lms_api.entity.Course;
@@ -11,46 +10,36 @@ import com.example.lms_api.entity.Student;
 import com.example.lms_api.repository.CourseRepository;
 import com.example.lms_api.repository.EnrollmentRepository;
 import com.example.lms_api.repository.PaymentRepository;
-import com.example.lms_api.repository.StudentRepository;
 import com.example.lms_api.service.PaymentService;
+import com.example.lms_api.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.payos.PayOS;
 import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
 import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
+import vn.payos.model.webhooks.Webhook;
+import vn.payos.model.webhooks.WebhookData;
 import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
 public class PaymentServiceImpl implements PaymentService {
 
+    @Value("${payos.webhook.verify-signature:true}")
+    private boolean verifySignature;
+
     private final PaymentRepository paymentRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final CourseRepository courseRepository;
-    private final StudentRepository studentRepository;
+    private final SecurityUtil securityUtil;
     private final PayOS payOS;
-
-    private Integer currentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getName() == null) {
-            throw new RuntimeException("Unauthenticated");
-        }
-        return Integer.parseInt(auth.getName());
-    }
-
-    private Student currentStudent() {
-        Integer userId = currentUserId();
-        return studentRepository.findByUser_Id(userId)
-                .orElseThrow(() -> new RuntimeException("Student profile not found for userId=" + userId));
-    }
 
     @Override
     @Transactional
     public PaymentCheckoutResponse checkout(PaymentCheckoutRequest request) {
-        Student student = currentStudent();
+        Student student = securityUtil.getCurrentStudent();
         Course course = courseRepository.findById(request.getCourseId())
                 .orElseThrow(() -> new RuntimeException("Course không tồn tại!"));
 
@@ -104,14 +93,30 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional
-    public PaymentWebhookResponse handleWebhook(PayOSWebhookRequest request) {
-        if (request.getData() == null || request.getData().getOrderCode() == null) {
+    public PaymentWebhookResponse handleWebhook(Webhook body) {
+        WebhookData verifiedData;
+        
+        if (verifySignature) {
+            // Xác thực chữ ký webhook sử dụng SDK PayOS
+            try {
+                verifiedData = payOS.webhooks().verify(body);
+            } catch (Exception e) {
+                throw new RuntimeException("Xác thực chữ ký webhook thất bại: " + e.getMessage());
+            }
+        } else {
+            // Chế độ DEV/TEST: bypass xác thực chữ ký để test nhanh bằng Postman
+            verifiedData = body.getData();
+        }
+
+        if (verifiedData == null || verifiedData.getOrderCode() == null) {
             throw new RuntimeException("Dữ liệu webhook từ PayOS không hợp lệ");
         }
 
         // Đọc mã giao dịch từ orderCode của PayOS
-        Integer paymentId = request.getData().getOrderCode();
-        Payment payment = paymentRepository.findById(paymentId).orElse(null);
+        Integer paymentId = verifiedData.getOrderCode().intValue();
+        
+        // Sử dụng khóa bi quan (SELECT FOR UPDATE) để đồng bộ đa luồng tránh Race Condition
+        Payment payment = paymentRepository.findByIdForUpdate(paymentId).orElse(null);
 
         // NẾU PAYOS GỬI MÃ TEST (Không có trong DB) -> Vẫn trả về OK để PayOS chịu lưu link
         if (payment == null) {
@@ -123,12 +128,36 @@ public class PaymentServiceImpl implements PaymentService {
                     .build();
         }
 
-        // Kiểm tra trạng thái: Mã "00" đại diện cho thanh toán thành công
-        String newStatus = "00".equals(request.getCode()) ? "Paid" : "Failed";
+        // KIỂM TRA ĐỘ ĐỘC TRỊ (Idempotency): Nếu giao dịch đã thanh toán rồi, trả về thành công sớm
+        if ("Paid".equalsIgnoreCase(payment.getPaymentStatus())) {
+            Enrollment activeEnrollment = enrollmentRepository
+                    .findFirstByCourse_CourseIdAndStudent_StudentIdOrderByEnrollDateDesc(
+                            payment.getCourse().getCourseId(),
+                            payment.getStudent().getStudentId())
+                    .orElse(null);
+
+            return PaymentWebhookResponse.builder()
+                    .paymentId(payment.getPaymentId())
+                    .paymentStatus(payment.getPaymentStatus())
+                    .enrollmentId(activeEnrollment != null ? activeEnrollment.getEnrollmentId() : null)
+                    .build();
+        }
+
+        // Đọc mã trạng thái từ verifiedData hoặc body
+        String code = verifiedData.getCode();
+        if (code == null) {
+            code = body.getCode();
+        }
+        String newStatus = "00".equals(code) ? "Paid" : "Failed";
 
         payment.setPaymentStatus(newStatus);
 
         if ("Paid".equalsIgnoreCase(newStatus)) {
+            // Đối chiếu số tiền thực tế chuyển khoản
+            if (verifiedData.getAmount() < payment.getAmount().intValue()) {
+                throw new RuntimeException("Số tiền thanh toán thực tế nhỏ hơn giá trị hóa đơn!");
+            }
+
             payment.setPaymentDate(LocalDateTime.now());
 
             // Tìm kiếm hoặc tạo mới thông tin ghi danh khóa học cho học viên
