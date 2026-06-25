@@ -218,4 +218,15 @@ public class CourseReviewServiceImpl implements CourseReviewService {
                 .createdAt(entity.getCreatedAt())
                 .build();
     }
+
+    @Override
+    public Double getAverageRating(Integer courseId) {
+        Double avgRating = courseReviewRepository.getAverageRatingByCourseId(courseId);
+
+
+        if (avgRating == null) {
+            return 0.0;
+        }
+        return Math.round(avgRating * 10.0) / 10.0;
+    }
 }
