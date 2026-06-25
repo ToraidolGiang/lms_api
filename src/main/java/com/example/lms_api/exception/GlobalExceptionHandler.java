@@ -31,10 +31,13 @@ public class GlobalExceptionHandler {
     }
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<?> handleRuntimeException(RuntimeException ex) {
-        // Trả về JSON chứa thông báo lỗi và mã lỗi 404 hoặc 400 tùy bạn chọn
+        ex.printStackTrace(); // IN RA CONSOLE ĐỂ DEBUG
+        String errorMsg = ex.getMessage();
+        if (ex.getCause() != null && ex.getCause().getMessage() != null) {
+            errorMsg += " | Cause: " + ex.getCause().getMessage();
+        }
         return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(Map.of("error", ex.getMessage()));
+                .status(HttpStatus.INTERNAL_SERVER_ERROR) // ĐỔI SANG 500 ĐỂ KHÔNG BỊ NHẦM LÀ 404
+                .body(Map.of("error", errorMsg != null ? errorMsg : ex.getClass().getName()));
     }
 }
-

@@ -13,7 +13,7 @@ public interface GradebookRepository extends JpaRepository<Gradebook, String> {
 
     @Query(value = "SELECT g.* FROM gradebook g " +
             "JOIN submission s ON g.submissionid = s.submissionid " +
-            "WHERE s.studentid = :studentId AND s.aqid = :lessonId " +
+            "WHERE CAST(s.studentid AS VARCHAR) = CAST(:studentId AS VARCHAR) AND s.aqid = :lessonId " +
             "ORDER BY g.gradedat DESC LIMIT 1", nativeQuery = true)
     Optional<Gradebook> findLatestGradeByStudentAndLesson(
             @Param("studentId") Integer studentId,
