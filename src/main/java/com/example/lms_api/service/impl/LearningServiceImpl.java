@@ -197,6 +197,14 @@ public class LearningServiceImpl implements LearningService {
             System.err.println("Lỗi xử lý JSON: " + e.getMessage());
         }
 
+        // Lấy lịch sử làm bài để tính số lần thử
+        java.util.List<Submission> previousSubmissions = submissionRepository.findByStudentIdAndAqId(studentId, lessonId);
+        int currentAttempt = previousSubmissions.size() + 1;
+
+        if (currentAttempt > 5) {
+            throw new RuntimeException("Bạn đã vượt quá số lần làm bài tối đa (5 lần).");
+        }
+
         // 3. Lưu thông tin bài làm vào bảng SQL Submission
         String submissionId = "SUB_" + System.currentTimeMillis();
         Submission submission = Submission.builder()
@@ -205,39 +213,61 @@ public class LearningServiceImpl implements LearningService {
                 .studentId(studentId)
                 .submittedAt(LocalDateTime.now())
                 .answers(answersJson)
-                .attemptCount(1)
+                .attemptCount(currentAttempt)
                 .build();
         submissionRepository.save(submission);
 
         // 4. CHẤM ĐIỂM VÀ LƯU VÀO BẢNG SỔ ĐIỂM (GRADEBOOK SQL)
-        Gradebook gradebook = Gradebook.builder()
-                .gradeId("GRD_" + System.currentTimeMillis())
-                .submissionId(submissionId)
-                .score((double) finalScore)
-                .isPassed(isPassed)
-                .feedback(isPassed ? "Hệ thống tự động chấm: Đạt yêu cầu." : "Hệ thống tự động chấm: Chưa đạt yêu cầu.")
-                .gradedAt(LocalDateTime.now())
-                .gradedBy("SYSTEM_AUTO")
-                .build();
-        gradebookRepository.save(gradebook);
+        java.util.Optional<Gradebook> existingGradebookOpt = gradebookRepository.findLatestGradeByStudentAndLesson(studentId, lessonId);
+        boolean isHigherScore = true; // Mặc định là điểm cao hơn nếu chưa làm bao giờ
+
+        if (existingGradebookOpt.isPresent()) {
+            Gradebook existingGradebook = existingGradebookOpt.get();
+            if (finalScore > existingGradebook.getScore()) {
+                existingGradebook.setScore((double) finalScore);
+                existingGradebook.setIsPassed(isPassed);
+                existingGradebook.setFeedback(isPassed ? "Hệ thống tự động chấm: Đạt yêu cầu." : "Hệ thống tự động chấm: Chưa đạt yêu cầu.");
+                existingGradebook.setSubmissionId(submissionId);
+                existingGradebook.setGradedAt(LocalDateTime.now());
+                gradebookRepository.save(existingGradebook);
+            } else {
+                isHigherScore = false; // Lần này điểm thấp hơn hoặc bằng, không update Sổ điểm
+            }
+        } else {
+            Gradebook gradebook = Gradebook.builder()
+                    .gradeId("GRD_" + System.currentTimeMillis())
+                    .submissionId(submissionId)
+                    .score((double) finalScore)
+                    .isPassed(isPassed)
+                    .feedback(isPassed ? "Hệ thống tự động chấm: Đạt yêu cầu." : "Hệ thống tự động chấm: Chưa đạt yêu cầu.")
+                    .gradedAt(LocalDateTime.now())
+                    .gradedBy("SYSTEM_AUTO")
+                    .build();
+            gradebookRepository.save(gradebook);
+        }
 
         // 5. Cập nhật đồng bộ dữ liệu tiến độ vào MongoDB
         StudentProgress progress = getOrCreateProgress(studentId, courseId);
         StudentProgress.LessonProgressData lessonData = getOrCreateLessonProgress(progress, lessonId, 0);
 
-        if (isPassed) {
-            lessonData.setStatus("completed");
-            lessonData.setCompletedAt(LocalDateTime.now());
-            lessonData.setProgressPercent(100.0);
-
-            if (!progress.getProgress().getCompletedLessons().contains(lessonId)) {
-                progress.getProgress().getCompletedLessons().add(lessonId);
+        if (isHigherScore) {
+            lessonData.setScore(finalScore);
+            if (isPassed) {
+                lessonData.setStatus("completed");
+                lessonData.setCompletedAt(LocalDateTime.now());
+                lessonData.setProgressPercent(100.0);
+    
+                if (!progress.getProgress().getCompletedLessons().contains(lessonId)) {
+                    progress.getProgress().getCompletedLessons().add(lessonId);
+                }
+            } else {
+                // Chỉ set in-progress nếu điểm mới cao hơn nhưng vẫn tạch (và chưa pass bao giờ)
+                if (!"completed".equals(lessonData.getStatus())) {
+                    lessonData.setStatus("in-progress");
+                }
             }
-        } else {
-            lessonData.setStatus("in-progress");
         }
 
-        lessonData.setScore(finalScore);
         progress.getProgress().setCurrentLesson(lessonId);
         updateOverallProgress(progress, courseId);
         progressRepository.save(progress);
@@ -279,13 +309,66 @@ public class LearningServiceImpl implements LearningService {
             progressRepository.save(progress);
         }
 
-        return learningMapper.toResponse(progress);
+        ProgressResponse response = learningMapper.toResponse(progress);
+
+        // Bổ sung dữ liệu attemptCount và maxAttempts cho quiz/assignment
+        CourseContent courseContent = courseContentRepository.findByCourseId(courseId).orElse(null);
+        Map<String, String> lessonTypeMap = new HashMap<>();
+        if (courseContent != null && courseContent.getModules() != null) {
+            courseContent.getModules().forEach(m -> {
+                if (m.getLessons() != null) {
+                    m.getLessons().forEach(l -> lessonTypeMap.put(l.getLessonId(), l.getType()));
+                }
+            });
+        }
+
+        if (response != null) {
+            java.util.List<ProgressResponse.LessonDetailProgress> details = response.getLessonDetails();
+            if (details == null) {
+                details = new ArrayList<>();
+                response.setLessonDetails(details);
+            }
+
+            // Đảm bảo tất cả quiz/assignment đều có mặt trong danh sách, kể cả chưa từng mở ra
+            for (Map.Entry<String, String> entry : lessonTypeMap.entrySet()) {
+                String lId = entry.getKey();
+                String lType = entry.getValue();
+
+                if ("quiz".equalsIgnoreCase(lType) || "assignment".equalsIgnoreCase(lType)) {
+                    ProgressResponse.LessonDetailProgress existingDetail = details.stream()
+                            .filter(d -> d.getLessonId().equals(lId))
+                            .findFirst()
+                            .orElse(null);
+
+                    if (existingDetail == null) {
+                        existingDetail = ProgressResponse.LessonDetailProgress.builder()
+                                .lessonId(lId)
+                                .status("not-started")
+                                .progressPercent(0.0)
+                                .build();
+                        details.add(existingDetail);
+                    }
+
+                    java.util.List<Submission> subs = submissionRepository.findByStudentIdAndAqId(studentId, lId);
+                    existingDetail.setAttemptCount(subs != null ? subs.size() : 0);
+                    existingDetail.setMaxAttempts("quiz".equalsIgnoreCase(lType) ? 5 : 1);
+                }
+            }
+        }
+
+        return response;
     }
 
     @Override
     @Transactional
     public ProgressResponse submitAssignment(Integer courseId, String lessonId, SubmitAssignmentRequest request) {
         Integer studentId = securityUtil.getCurrentStudentId();
+
+        // Lấy lịch sử nộp bài Assignment
+        java.util.List<Submission> previousSubmissions = submissionRepository.findByStudentIdAndAqId(studentId, lessonId);
+        if (!previousSubmissions.isEmpty()) {
+            throw new RuntimeException("Đây là bài thi cuối khóa. Bạn chỉ được phép nộp 1 lần duy nhất!");
+        }
 
         // 1. Lưu link Drive/Cloudinary vào PostgreSQL
         Submission submission = Submission.builder()
