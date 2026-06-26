@@ -20,5 +20,7 @@ public class ProgressResponse {
         private String status;
         private Double progressPercent;
         private Integer score;
+        private Integer attemptCount;
+        private Integer maxAttempts;
     }
 }

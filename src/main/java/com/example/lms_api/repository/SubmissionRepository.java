@@ -11,14 +11,17 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+
 @Repository
 public interface SubmissionRepository extends JpaRepository<Submission, String> {
 
+    @Query(value = "SELECT * FROM submission WHERE CAST(studentid AS VARCHAR) = CAST(:studentId AS VARCHAR) AND type = :type ORDER BY submittedat DESC LIMIT 1", nativeQuery = true)
     Optional<Submission> findTopByStudentIdAndTypeOrderBySubmittedAtDesc(
-            Integer studentId, String type);
+            @Param("studentId") Integer studentId, @Param("type") String type);
 
     // Lấy tất cả submission quiz của student (để tính quizAvgScore)
-    List<Submission> findByStudentIdAndType(Integer studentId, String type);
+    @Query(value = "SELECT * FROM submission WHERE CAST(studentid AS VARCHAR) = CAST(:studentId AS VARCHAR) AND type = :type", nativeQuery = true)
+    List<Submission> findByStudentIdAndType(@Param("studentId") Integer studentId, @Param("type") String type);
 
     // ── Dashboard queries ────────────────────────────────────────────────────
     // NOTE: submission.aqId là lessonId lưu trong MongoDB → KHÔNG thể JOIN trực tiếp với PostgreSQL.
@@ -152,4 +155,6 @@ public interface SubmissionRepository extends JpaRepository<Submission, String> 
         ORDER BY pendingCount DESC
         """, nativeQuery = true)
     List<Object[]> findPendingGradingGroupedByCourse(@Param("teacherId") Integer teacherId);
+    @Query(value = "SELECT * FROM submission WHERE CAST(studentid AS VARCHAR) = CAST(:studentId AS VARCHAR) AND aqid = :aqId", nativeQuery = true)
+    List<Submission> findByStudentIdAndAqId(@Param("studentId") Integer studentId, @Param("aqId") String aqId);
 }
