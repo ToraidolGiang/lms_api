@@ -20,11 +20,11 @@ public interface CourseService {
      * GET /api/v1/courses/explore?page=0&size=8
      * Phân trang danh sách khoá học explore dành cho student.
      */
-    PagedResponse<CourseResponse> getExploreCoursesPagedStudent(int page, int size);
+    PagedResponse<CourseResponse> getExploreCoursesPagedStudent(int page, int size, String search, String category, String price, String rating);
 
     /**
      * GET /api/v1/courses/explore/me?page=0&size=8
      * Phân trang danh sách khoá học explore dành cho teacher.
      */
-    PagedResponse<CourseResponse> getExploreCoursesPagedTeacher(int page, int size);
+    PagedResponse<CourseResponse> getExploreCoursesPagedTeacher(int page, int size, String search, String category, String price, String rating);
 }

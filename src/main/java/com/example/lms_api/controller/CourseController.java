@@ -72,9 +72,13 @@ public class CourseController {
     @GetMapping("/explore/paged")
     public ResponseEntity<PagedResponse<CourseResponse>> getExploreCoursesPagedStudent(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "8") int size) {
+            @RequestParam(defaultValue = "8") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String price,
+            @RequestParam(required = false) String rating) {
         if (size > 50) size = 50;
-        return ResponseEntity.ok(courseService.getExploreCoursesPagedStudent(page, size));
+        return ResponseEntity.ok(courseService.getExploreCoursesPagedStudent(page, size, search, category, price, rating));
     }
 
     /**
@@ -84,8 +88,12 @@ public class CourseController {
     @GetMapping("/explore/me/paged")
     public ResponseEntity<PagedResponse<CourseResponse>> getExploreCoursesPagedTeacher(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "8") int size) {
+            @RequestParam(defaultValue = "8") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String price,
+            @RequestParam(required = false) String rating) {
         if (size > 50) size = 50;
-        return ResponseEntity.ok(courseService.getExploreCoursesPagedTeacher(page, size));
+        return ResponseEntity.ok(courseService.getExploreCoursesPagedTeacher(page, size, search, category, price, rating));
     }
 }

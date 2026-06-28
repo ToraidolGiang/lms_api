@@ -10,4 +10,6 @@ public interface CourseSummaryProjection {
     String getTeacherName();
     String getCategoryName();
     Integer getTotalStudents();
+    Double getAverageRating();
+    Integer getTotalLessons();
 }

@@ -180,14 +180,60 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
-    public PagedResponse<CourseResponse> getExploreCoursesPagedStudent(int page, int size) {
+    public PagedResponse<CourseResponse> getExploreCoursesPagedStudent(int page, int size, String search, String category, String price, String rating) {
         List<CourseResponse> all = getExploreCourses();
-        return PagedResponse.of(all, page, size);
+        List<CourseResponse> filtered = filterCourses(all, search, category, price, rating);
+        return PagedResponse.of(filtered, page, size);
     }
 
     @Override
-    public PagedResponse<CourseResponse> getExploreCoursesPagedTeacher(int page, int size) {
+    public PagedResponse<CourseResponse> getExploreCoursesPagedTeacher(int page, int size, String search, String category, String price, String rating) {
         List<CourseResponse> all = getExploreCoursesTea();
-        return PagedResponse.of(all, page, size);
+        List<CourseResponse> filtered = filterCourses(all, search, category, price, rating);
+        return PagedResponse.of(filtered, page, size);
+    }
+
+    private List<CourseResponse> filterCourses(List<CourseResponse> all, String search, String category, String price, String ratingStr) {
+        return all.stream()
+                .filter(c -> {
+                    // 1. Search
+                    if (search != null && !search.trim().isEmpty()) {
+                        if (c.getTitle() == null || !c.getTitle().toLowerCase().contains(search.toLowerCase().trim())) {
+                            return false;
+                        }
+                    }
+                    // 2. Category
+                    if (category != null && !category.equalsIgnoreCase("All") && !category.trim().isEmpty()) {
+                        if (c.getCategoryName() == null || !c.getCategoryName().equalsIgnoreCase(category)) {
+                            return false;
+                        }
+                    }
+                    // 3. Price
+                    if (price != null && !price.equalsIgnoreCase("All") && !price.trim().isEmpty()) {
+                        double itemPrice = (c.getPrice() != null) ? c.getPrice().doubleValue() : 0.0;
+                        if (price.equalsIgnoreCase("Free")) {
+                            if (itemPrice > 0) return false;
+                        } else if (price.equalsIgnoreCase("Under $50")) {
+                            if (itemPrice >= 50) return false;
+                        } else if (price.equalsIgnoreCase("$50-$100")) {
+                            if (itemPrice < 50 || itemPrice > 100) return false;
+                        } else if (price.equalsIgnoreCase("Over $100")) {
+                            if (itemPrice <= 100) return false;
+                        }
+                    }
+                    // 4. Rating
+                    if (ratingStr != null && !ratingStr.equalsIgnoreCase("Any") && !ratingStr.trim().isEmpty()) {
+                        try {
+                            String r = ratingStr.replaceAll("[^0-9.]", "");
+                            if (!r.isEmpty()) {
+                                double targetRate = Double.parseDouble(r);
+                                double itemRate = c.getAverageRating();
+                                if (itemRate < targetRate) return false;
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                    return true;
+                })
+                .collect(Collectors.toList());
     }
 }
