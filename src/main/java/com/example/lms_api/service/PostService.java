@@ -12,7 +12,7 @@ import java.util.List;
 
 public interface PostService {
 
-    List<PostResponse> getPosts(String category, String query, String sortBy, int page, int size);
+    List<PostResponse> getPosts(String category, String query, String sortBy, int page, int size, String currentUserId);
 
     PostDetailResponse getPostDetail(String id, String currentUserId);
 
@@ -33,5 +33,4 @@ public interface PostService {
 
     CommunityStatsResponse getCommunityStats();
 
-    PostResponse togglePin(String postId, String currentUserId, boolean canPin);
 }
