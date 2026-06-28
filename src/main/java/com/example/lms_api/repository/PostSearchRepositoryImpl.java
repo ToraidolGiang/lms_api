@@ -41,22 +41,20 @@ public class PostSearchRepositoryImpl implements PostSearchRepository {
             operations.add(Aggregation.match(searchCriteria));
         }
 
-        // 🌟 BỔ SUNG LOGIC SẮP XẾP: Ghép thêm cờ "isPinned" vào tham số đầu tiên của Sort.
-        // Do xếp DESC (giảm dần) nên True (1) sẽ luôn đứng trên False (0).
         if ("trending".equalsIgnoreCase(sortBy)) {
             operations.add(Aggregation.project(Post.class)
                     .and(ArrayOperators.Size.lengthOfArray(ConditionalOperators.ifNull("likes").then(Collections.emptyList())))
                     .as("likesCount"));
-            operations.add(Aggregation.sort(Sort.Direction.DESC, "isPinned", "likesCount", "createdAt"));
+            operations.add(Aggregation.sort(Sort.Direction.DESC, "likesCount", "createdAt"));
 
         } else if ("replies".equalsIgnoreCase(sortBy)) {
             operations.add(Aggregation.project(Post.class)
                     .and(ArrayOperators.Size.lengthOfArray(ConditionalOperators.ifNull("comments").then(Collections.emptyList())))
                     .as("commentsCount"));
-            operations.add(Aggregation.sort(Sort.Direction.DESC, "isPinned", "commentsCount", "createdAt"));
+            operations.add(Aggregation.sort(Sort.Direction.DESC, "commentsCount", "createdAt"));
 
         } else {
-            operations.add(Aggregation.sort(Sort.Direction.DESC, "isPinned", "createdAt"));
+            operations.add(Aggregation.sort(Sort.Direction.DESC, "createdAt"));
         }
 
         operations.add(Aggregation.skip((long) pageable.getPageNumber() * pageable.getPageSize()));

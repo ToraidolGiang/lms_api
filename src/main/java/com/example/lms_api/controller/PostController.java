@@ -37,9 +37,11 @@ public class PostController {
             @RequestParam(required = false, name = "q") String query,
             @RequestParam(defaultValue = "newest") String sortBy,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            Authentication authentication
     ) {
-        return ResponseEntity.ok(postService.getPosts(category, query, sortBy, page, size));
+        String currentUserId = authentication != null ? authentication.getName() : null;
+        return ResponseEntity.ok(postService.getPosts(category, query, sortBy, page, size, currentUserId));
     }
 
     @GetMapping("/{id}")
@@ -135,15 +137,7 @@ public class PostController {
         return ResponseEntity.ok(postService.updatePost(postId, request, userId, isAdmin));
     }
 
-    @PostMapping("/{postId}/pin")
-    public ResponseEntity<PostResponse> togglePin(
-            @PathVariable String postId,
-            Authentication authentication
-    ) {
-        String userId = requireUserId(authentication);
-        boolean canPin = hasRole(authentication, "ROLE_ADMIN") || hasRole(authentication, "ROLE_TEACHER");
-        return ResponseEntity.ok(postService.togglePin(postId, userId, canPin));
-    }
+
 
     private String requireUserId(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {

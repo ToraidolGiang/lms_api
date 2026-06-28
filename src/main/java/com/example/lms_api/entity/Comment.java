@@ -17,16 +17,19 @@ public class Comment {
 
     private String content;
 
+    private String parentCommentId;
+
     private Instant createdAt;
 
     public Comment() {
     }
 
-    public Comment(String commentId, String userId, String authorName, String content, Instant createdAt) {
+    public Comment(String commentId, String userId, String authorName, String content, String parentCommentId, Instant createdAt) {
         this.commentId = commentId;
         this.userId = userId;
         this.authorName = authorName;
         this.content = content;
+        this.parentCommentId = parentCommentId;
         this.createdAt = createdAt;
     }
 }
