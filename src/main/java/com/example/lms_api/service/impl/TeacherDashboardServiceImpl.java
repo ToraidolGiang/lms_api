@@ -98,9 +98,9 @@ public class TeacherDashboardServiceImpl implements TeacherDashboardService {
         long pendingGrading = submissionRepository.countPendingGradingByTeacherId(teacherId);
 
         // Điểm trung bình
-        double avgScore = gradebookRepository.avgScoreByTeacherId(teacherId);
-        // Làm tròn 1 chữ số thập phân
-        avgScore = Math.round(avgScore * 10.0) / 10.0;
+        Double avgScore = gradebookRepository.avgScoreByTeacherId(teacherId);
+        double safeScore = (avgScore != null) ? avgScore : 0.0;
+        avgScore = (double) Math.round(safeScore * 10) / 10;
 
         return TeacherOverviewResponse.builder()
                 .teacherName(fullName)
