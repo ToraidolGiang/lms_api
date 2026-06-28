@@ -250,6 +250,9 @@ public class LearningServiceImpl implements LearningService {
         StudentProgress progress = getOrCreateProgress(studentId, courseId);
         StudentProgress.LessonProgressData lessonData = getOrCreateLessonProgress(progress, lessonId, 0);
 
+        lessonData.setAttemptCount(currentAttempt);
+        lessonData.setMaxAttempts(5);
+
         if (isHigherScore) {
             lessonData.setScore(finalScore);
             if (isPassed) {
