@@ -184,7 +184,7 @@ public class CourseGradeServiceImpl implements CourseGradeService {
                 .orElse(CourseGrade.builder()
                         .studentId(studentId)
                         .courseId(courseId)
-                        .isMasked(false)
+                        .isMasked(true)
                         .build());
 
         grade.setExamScore(examScore);
@@ -192,7 +192,8 @@ public class CourseGradeServiceImpl implements CourseGradeService {
         grade.setFinalScore(finalScore);
         grade.setGradeLevel(gradeLevel);
         grade.setGradedAt(LocalDateTime.now());
-        if (request.getIsMasked() != null) grade.setIsMasked(request.getIsMasked());
+        grade.setIsMasked(Boolean.TRUE);
+
 
         courseGradeRepository.save(grade);
 

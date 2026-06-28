@@ -58,4 +58,9 @@ public class CourseController {
     public ResponseEntity<List<CourseResponse>> getExploreCourses() {
         return ResponseEntity.ok(courseService.getExploreCourses());
     }
+
+    @GetMapping("/explore/me")
+    public ResponseEntity<List<CourseResponse>> getExploreCoursesTea() {
+        return ResponseEntity.ok(courseService.getExploreCoursesTea());
+    }
 }

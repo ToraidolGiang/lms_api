@@ -30,5 +30,4 @@ public interface TeacherRepository extends JpaRepository<Teacher,String> {
                           @Param("bio") String bio);
 
 
-
 }
