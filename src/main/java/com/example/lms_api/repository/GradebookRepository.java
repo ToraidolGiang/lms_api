@@ -33,17 +33,13 @@ public interface GradebookRepository extends JpaRepository<Gradebook, String> {
      * Đường đi: gradebook → submission.studentId → enrollment → course → teacher
      */
     @Query(value = """
-        SELECT COALESCE(AVG(g.score), 0)
-        FROM gradebook g
-        JOIN submission s ON g.submissionid = s.submissionid
-        WHERE s.studentid IN (
-            SELECT DISTINCT e.student_id
-            FROM enrollment e
-            JOIN courses c ON e.course_id = c.courseid
-            WHERE c.teacherid = :teacherId
-        )
-        """, nativeQuery = true)
-    double avgScoreByTeacherId(@Param("teacherId") Integer teacherId);
+        SELECT avg(cg.final_score) AS pendingCount
+        FROM courses c
+        LEFT JOIN course_grade cg ON c.courseid = cg.courseid
+        WHERE cg.is_masked = true AND c.teacherid = :teacherId
+        GROUP BY c.courseid, c.title
+    """, nativeQuery = true)
+    Double avgScoreByTeacherId(@Param("teacherId") Integer teacherId);
 
     /**
      * Lấy danh sách bài vừa được chấm điểm gần đây của teacher.

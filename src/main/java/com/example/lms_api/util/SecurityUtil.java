@@ -1,7 +1,9 @@
 package com.example.lms_api.util;
 
 import com.example.lms_api.entity.Student;
+import com.example.lms_api.entity.Teacher;
 import com.example.lms_api.repository.StudentRepository;
+import com.example.lms_api.repository.TeacherRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Component;
 public class SecurityUtil {
 
     private final StudentRepository studentRepository;
+    private final TeacherRepository teacherRepository;
 
     /**
      * Lấy userId (Integer) của người đang đăng nhập từ JWT token.
@@ -47,5 +50,16 @@ public class SecurityUtil {
      */
     public Integer getCurrentStudentId() {
         return getCurrentStudent().getStudentId();
+    }
+
+    public Teacher getCurrentTeacher() {
+        Integer userId = getCurrentUserId();
+        return teacherRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException(
+                "Teacher profile not found for userId=" + userId));
+    }
+
+    public Integer getCurrentTeacherId() {
+        return getCurrentTeacher().getTeacherId();
     }
 }

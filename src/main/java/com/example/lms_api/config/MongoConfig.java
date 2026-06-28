@@ -18,6 +18,6 @@ public class MongoConfig {
     @Bean
     public MongoTemplate mongoTemplate(MongoClient mongoClient) {
         // Tuyên bố quyền lực tối cao: ÉP CỨNG tên database là lms_mongo_db
-        return new MongoTemplate(mongoClient, "lms");
+        return new MongoTemplate(mongoClient, "lms_mongo_db");
     }
 }
