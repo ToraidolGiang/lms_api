@@ -30,7 +30,5 @@ public class PostResponse {
 
     private List<String> tags;
 
-    // 🌟 BỔ SUNG: Truyền cờ Ghim xuống cho Frontend xử lý giao diện
-
-    private boolean pinned;
+    private boolean likedByMe;
 }

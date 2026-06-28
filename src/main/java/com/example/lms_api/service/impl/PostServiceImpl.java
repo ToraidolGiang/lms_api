@@ -11,6 +11,8 @@ import com.example.lms_api.repository.PostRepository;
 import com.example.lms_api.repository.PostSearchRepository;
 import com.example.lms_api.repository.UserRepository;
 import com.example.lms_api.service.PostService;
+import com.example.lms_api.service.NotificationService;
+import com.example.lms_api.dto.request.NotificationRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -30,18 +32,20 @@ public class PostServiceImpl implements PostService {
     private final PostRepository postRepository;
     private final PostMapper postMapper;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
-    public PostServiceImpl(PostRepository postRepository, PostMapper postMapper, UserRepository userRepository) {
+    public PostServiceImpl(PostRepository postRepository, PostMapper postMapper, UserRepository userRepository, NotificationService notificationService) {
         this.postRepository = postRepository;
         this.postMapper = postMapper;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     @Autowired
     private PostSearchRepository postSearchRepository;
 
     @Override
-    public List<PostResponse> getPosts(String category, String query, String sortBy, int page, int size) {
+    public List<PostResponse> getPosts(String category, String query, String sortBy, int page, int size, String currentUserId) {
         int pageIndex = Math.max(0, page - 1);
         int pageSize = Math.max(1, size);
         Pageable pageable = org.springframework.data.domain.PageRequest.of(pageIndex, pageSize);
@@ -51,7 +55,7 @@ public class PostServiceImpl implements PostService {
         List<Post> posts = postsPage.getContent();
         for (Post p : posts) enrichAuthorRole(p);
 
-        return posts.stream().map(postMapper::toResponse).toList();
+        return posts.stream().map(post -> postMapper.toResponse(post, currentUserId)).toList();
     }
 
     @Override
@@ -97,13 +101,13 @@ public class PostServiceImpl implements PostService {
         post.setAuthorName(user.getUsername());
         post.setAuthorRole(user.getRole().name());
 
-        post.setPinned(false);
+
 
         post.setCreatedAt(now);
         post.setUpdatedAt(now);
 
         Post savedPost = postRepository.save(post);
-        return postMapper.toResponse(savedPost);
+        return postMapper.toResponse(savedPost, userId);
     }
 
     @Override
@@ -135,6 +139,22 @@ public class PostServiceImpl implements PostService {
         } else {
             post.getLikes().add(currentUserId);
             liked = true;
+            
+            // Gửi thông báo khi người dùng thả tim (nếu không phải tự thả tim bài của mình)
+            try {
+                if (!currentUserId.equals(post.getUserId())) {
+                    User liker = findUserByIdString(currentUserId);
+                    NotificationRequest notifReq = new NotificationRequest();
+                    notifReq.setTargetUserId(Integer.parseInt(post.getUserId()));
+                    notifReq.setTitle("Có người thích bài viết của bạn");
+                    notifReq.setMessage(liker.getUsername() + " đã thích bài viết: " + post.getTitle());
+                    notifReq.setLink("community/" + postId);
+                    notifReq.setType("LIKE_POST");
+                    notificationService.createNotification(notifReq);
+                }
+            } catch (Exception e) {
+                System.err.println("Lỗi gửi thông báo thả tim: " + e.getMessage());
+            }
         }
 
         postRepository.save(post);
@@ -165,6 +185,7 @@ public class PostServiceImpl implements PostService {
                 currentUserId,
                 user.getUsername(),
                 request.getContent().trim(),
+                request.getParentCommentId(),
                 now
         );
 
@@ -172,7 +193,40 @@ public class PostServiceImpl implements PostService {
         post.setUpdatedAt(now);
         postRepository.save(post);
 
-        return new CommentResponse(commentId, currentUserId, user.getUsername(), comment.getContent(), now);
+        try {
+            if (request.getParentCommentId() != null && !request.getParentCommentId().isEmpty()) {
+                Comment parentComment = null;
+                for (Comment c : post.getComments()) {
+                    if (c.getCommentId().equals(request.getParentCommentId())) {
+                        parentComment = c;
+                        break;
+                    }
+                }
+                if (parentComment != null && !parentComment.getUserId().equals(currentUserId)) {
+                    NotificationRequest notifReq = new NotificationRequest();
+                    notifReq.setTargetUserId(Integer.parseInt(parentComment.getUserId()));
+                    notifReq.setTitle("Có người trả lời bình luận của bạn");
+                    notifReq.setMessage(user.getUsername() + " đã trả lời bình luận của bạn trong bài viết: " + post.getTitle());
+                    notifReq.setLink("community/" + postId); 
+                    notifReq.setType("REPLY_COMMENT");
+                    notificationService.createNotification(notifReq);
+                }
+            } else {
+                if (!post.getUserId().equals(currentUserId)) {
+                    NotificationRequest notifReq = new NotificationRequest();
+                    notifReq.setTargetUserId(Integer.parseInt(post.getUserId()));
+                    notifReq.setTitle("Bình luận mới trong bài viết của bạn");
+                    notifReq.setMessage(user.getUsername() + " đã bình luận về bài viết: " + post.getTitle());
+                    notifReq.setLink("community/" + postId);
+                    notifReq.setType("NEW_COMMENT");
+                    notificationService.createNotification(notifReq);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Lỗi gửi thông báo: " + e.getMessage());
+        }
+
+        return new CommentResponse(commentId, currentUserId, user.getUsername(), comment.getContent(), comment.getParentCommentId(), now);
     }
 
     // 🌟 BỔ SUNG LOGIC THỰC THI: Chỉnh sửa bình luận bài viết
@@ -224,6 +278,7 @@ public class PostServiceImpl implements PostService {
                 targetComment.getUserId(),
                 targetComment.getAuthorName(),
                 targetComment.getContent(),
+                targetComment.getParentCommentId(),
                 targetComment.getCreatedAt()
         );
     }
@@ -269,7 +324,7 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bài viết id = " + postId));
 
-        if (!isAdmin && (currentUserId == null || !currentUserId.equals(post.getUserId()))) {
+        if (currentUserId == null || !currentUserId.equals(post.getUserId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền chỉnh sửa bài viết này");
         }
 
@@ -291,7 +346,7 @@ public class PostServiceImpl implements PostService {
 
         post.setUpdatedAt(Instant.now());
         Post updatedPost = postRepository.save(post);
-        return postMapper.toResponse(updatedPost);
+        return postMapper.toResponse(updatedPost, currentUserId);
     }
 
     @Override
@@ -336,21 +391,7 @@ public class PostServiceImpl implements PostService {
         return new CommunityStatsResponse(totalMembers, totalTopics, totalReplies, liveOnlineCount);
     }
 
-    @Override
-    public PostResponse togglePin(String postId, String currentUserId, boolean canPin) {
-        if (!canPin) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ Quản trị viên hoặc Giảng viên mới có quyền ghim bài");
-        }
 
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bài viết id = " + postId));
-
-        post.setPinned(!post.isPinned());
-        post.setUpdatedAt(Instant.now());
-
-        Post savedPost = postRepository.save(post);
-        return postMapper.toResponse(savedPost);
-    }
 
     private void validateCreatePostRequest(CreatePostRequest request) {
         if (request == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request không được null");

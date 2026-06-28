@@ -12,6 +12,7 @@ import com.example.lms_api.repository.CourseRepository;
 import com.example.lms_api.repository.CourseReviewRepository;
 import com.example.lms_api.repository.TeacherRepository;
 import com.example.lms_api.service.CourseService;
+import com.example.lms_api.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,8 +32,8 @@ public class CourseServiceImpl implements CourseService {
     private final CourseMapper courseMapper;             // ← inject mapper
     private final CourseContentService courseContentService;
     private final CourseReviewServiceImpl courseReviewService;
+    private final SecurityUtil securityUtil;
     private final com.example.lms_api.repository.EnrollmentRepository enrollmentRepository;
-    private final com.example.lms_api.util.SecurityUtil securityUtil;
 
 
     // ── Tạo mới ──────────────────────────────────────────────
@@ -94,7 +95,13 @@ public class CourseServiceImpl implements CourseService {
             throw new RuntimeException("Khóa học này đã bị xóa!");
         }
 
-        return courseMapper.toResponse(course);    // ← dùng mapper
+        Teacher teacher = teacherRepository.findByTeacherId(course.getTeacher().getTeacherId())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy giang vien với ID: " + id));
+        CourseResponse c = new CourseResponse();
+        c = courseMapper.toResponse(course);
+        c.setTeacherName(teacher.getFirstName()+ " "+teacher.getLastName());
+
+        return c;    // ← dùng mapper
     }
 
     // ── Cập nhật ─────────────────────────────────────────────
@@ -145,6 +152,45 @@ public class CourseServiceImpl implements CourseService {
     public List<CourseResponse> getExploreCourses() {
         // 1. Gọi query SQL để lấy thông tin tổng hợp
         List<CourseSummaryProjection> projections = courseRepository.getExploreCourses();
+
+        // 2. Chuyển đổi từ Projection sang Response DTO
+        return projections.stream().map(p -> {
+            CourseResponse response = new CourseResponse();
+            response.setCourseId(p.getCourseId());
+            response.setTitle(p.getCourseTitle());
+            response.setPrice(p.getPrice());
+            response.setImageUrl(p.getImageUrl());
+            response.setTeacherName(p.getTeacherName());
+            response.setCategoryName(p.getCategoryName());
+            response.setTotalStudents(p.getTotalStudents());
+            Integer totalLessons = courseContentService.getTotalLessons(p.getCourseId());
+            response.setTotalLessons(totalLessons);
+            Double rating = courseReviewService.getAverageRating(p.getCourseId());
+            response.setAverageRating(rating);
+
+            Integer studentId = null;
+            try {
+                studentId = securityUtil.getCurrentStudentId();
+            } catch (Exception ignored) {}
+
+            if (studentId != null) {
+                boolean isEnrolled = enrollmentRepository.existsByCourse_CourseIdAndStudent_StudentIdAndAccessStatus(
+                        p.getCourseId(), studentId, "Active");
+                response.setPurchased(isEnrolled);
+            } else {
+                response.setPurchased(false);
+            }
+
+            return response;
+        }).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<CourseResponse> getExploreCoursesTea() {
+
+        Integer teacherId = securityUtil.getCurrentTeacherId();
+        // 1. Gọi query SQL để lấy thông tin tổng hợp
+        List<CourseSummaryProjection> projections = courseRepository.getExploreCourses(teacherId);
 
         // 2. Chuyển đổi từ Projection sang Response DTO
         return projections.stream().map(p -> {
