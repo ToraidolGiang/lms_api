@@ -1,6 +1,7 @@
 package com.example.lms_api.service.impl;
 
 import com.example.lms_api.dto.response.CourseResponse;
+import com.example.lms_api.dto.response.PagedResponse;
 import com.example.lms_api.dto.response.TeacherDashboardResponse;
 import com.example.lms_api.dto.response.dashboard.*;
 import com.example.lms_api.entity.Course;
@@ -332,6 +333,31 @@ public class TeacherDashboardServiceImpl implements TeacherDashboardService {
                 .pendingCount(tasks.size())
                 .tasks(tasks)
                 .build();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  (Mới) getRecentActivitiesPaged – Phân trang hoạt động gần đây
+    // ─────────────────────────────────────────────────────────────────────────
+    @Override
+    public PagedResponse<RecentActivityResponse> getRecentActivitiesPaged(Integer userId, int page, int size) {
+        // Lấy toàn bộ data rồi cắt theo trang
+        // limit truyền vào đủ lớn để lấy hết (max 200)
+        List<RecentActivityResponse> all = getRecentActivities(userId, 200);
+        return PagedResponse.of(all, page, size);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  (Mới) getMyCoursesPaged – Phân trang danh sách khoá học của teacher
+    // ─────────────────────────────────────────────────────────────────────────
+    @Override
+    public PagedResponse<CourseResponse> getMyCoursesPaged(Integer userId, int page, int size) {
+        // Lấy teacher từ userId
+        Teacher teacher = teacherRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Teacher not found for userId=" + userId));
+        Integer teacherId = teacher.getTeacherId();
+
+        List<CourseResponse> all = getMyCourses(teacherId);
+        return PagedResponse.of(all, page, size);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

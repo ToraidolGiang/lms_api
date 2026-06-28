@@ -1,6 +1,7 @@
 package com.example.lms_api.controller;
 import com.example.lms_api.dto.request.CourseRequest;
 import com.example.lms_api.dto.response.CourseResponse;
+import com.example.lms_api.dto.response.PagedResponse;
 import com.example.lms_api.service.CourseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -62,5 +63,29 @@ public class CourseController {
     @GetMapping("/explore/me")
     public ResponseEntity<List<CourseResponse>> getExploreCoursesTea() {
         return ResponseEntity.ok(courseService.getExploreCoursesTea());
+    }
+
+    /**
+     * GET /api/v1/courses/explore/paged?page=0&size=8
+     * Phân trang danh sách khoá học explore (student).
+     */
+    @GetMapping("/explore/paged")
+    public ResponseEntity<PagedResponse<CourseResponse>> getExploreCoursesPagedStudent(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "8") int size) {
+        if (size > 50) size = 50;
+        return ResponseEntity.ok(courseService.getExploreCoursesPagedStudent(page, size));
+    }
+
+    /**
+     * GET /api/v1/courses/explore/me/paged?page=0&size=8
+     * Phân trang danh sách khoá học explore (teacher).
+     */
+    @GetMapping("/explore/me/paged")
+    public ResponseEntity<PagedResponse<CourseResponse>> getExploreCoursesPagedTeacher(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "8") int size) {
+        if (size > 50) size = 50;
+        return ResponseEntity.ok(courseService.getExploreCoursesPagedTeacher(page, size));
     }
 }

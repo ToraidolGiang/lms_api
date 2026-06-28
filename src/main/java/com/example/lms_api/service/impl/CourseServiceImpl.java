@@ -2,6 +2,7 @@ package com.example.lms_api.service.impl;
 
 import com.example.lms_api.dto.request.CourseRequest;
 import com.example.lms_api.dto.response.CourseResponse;
+import com.example.lms_api.dto.response.PagedResponse;
 import com.example.lms_api.entity.Category;
 import com.example.lms_api.entity.Course;
 import com.example.lms_api.entity.Teacher;
@@ -176,5 +177,17 @@ public class CourseServiceImpl implements CourseService {
             response.setAverageRating(rating);
             return response;
         }).collect(Collectors.toList());
+    }
+
+    @Override
+    public PagedResponse<CourseResponse> getExploreCoursesPagedStudent(int page, int size) {
+        List<CourseResponse> all = getExploreCourses();
+        return PagedResponse.of(all, page, size);
+    }
+
+    @Override
+    public PagedResponse<CourseResponse> getExploreCoursesPagedTeacher(int page, int size) {
+        List<CourseResponse> all = getExploreCoursesTea();
+        return PagedResponse.of(all, page, size);
     }
 }

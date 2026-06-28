@@ -1,6 +1,7 @@
 package com.example.lms_api.controller;
 
 import com.example.lms_api.dto.response.CourseResponse;
+import com.example.lms_api.dto.response.PagedResponse;
 import com.example.lms_api.dto.response.TeacherDashboardResponse;
 import com.example.lms_api.dto.response.dashboard.*;
 import com.example.lms_api.service.TeacherDashboardService;
@@ -85,6 +86,39 @@ public class TeacherDashboardController {
         if (limit > 50) limit = 50;
         Integer userId = securityUtil.getCurrentUserId();
         return ResponseEntity.ok(dashboardService.getRecentActivities(userId, limit));
+    }
+
+    /**
+     * GET /api/teacher-dashboard/recent-activities/paged?page=0&size=8
+     *
+     * Phân trang hoạt động gần đây (8 bản ghi/trang).
+     * Trả về PagedResponse với totalPages, hasNext, hasPrevious.
+     *
+     * Header: Authorization: Bearer {jwt}
+     */
+    @GetMapping("/recent-activities/paged")
+    public ResponseEntity<PagedResponse<RecentActivityResponse>> getRecentActivitiesPaged(
+            @RequestParam(defaultValue = "0")  int page,
+            @RequestParam(defaultValue = "8")  int size) {
+        if (size > 50) size = 50;
+        Integer userId = securityUtil.getCurrentUserId();
+        return ResponseEntity.ok(dashboardService.getRecentActivitiesPaged(userId, page, size));
+    }
+
+    /**
+     * GET /api/teacher-dashboard/my-courses/paged?page=0&size=8
+     *
+     * Phân trang danh sách khoá học của giáo viên.
+     *
+     * Header: Authorization: Bearer {jwt}
+     */
+    @GetMapping("/my-courses/paged")
+    public ResponseEntity<PagedResponse<CourseResponse>> getMyCoursesPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "8") int size) {
+        if (size > 50) size = 50;
+        Integer userId = securityUtil.getCurrentUserId();
+        return ResponseEntity.ok(dashboardService.getMyCoursesPaged(userId, page, size));
     }
 
     /**
