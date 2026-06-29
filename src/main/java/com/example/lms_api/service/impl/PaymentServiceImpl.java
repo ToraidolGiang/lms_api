@@ -3,6 +3,8 @@ package com.example.lms_api.service.impl;
 import com.example.lms_api.dto.request.PaymentCheckoutRequest;
 import com.example.lms_api.dto.response.PaymentCheckoutResponse;
 import com.example.lms_api.dto.response.PaymentWebhookResponse;
+import com.example.lms_api.dto.request.NotificationRequest;
+import com.example.lms_api.service.NotificationService;
 import com.example.lms_api.entity.Course;
 import com.example.lms_api.entity.Enrollment;
 import com.example.lms_api.entity.Payment;
@@ -32,6 +34,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final NotificationService notificationService;
     private final CourseRepository courseRepository;
     private final SecurityUtil securityUtil;
     private final PayOS payOS;
@@ -69,8 +72,8 @@ public class PaymentServiceImpl implements PaymentService {
                     .orderCode(saved.getPaymentId().longValue())
                     .amount(saved.getAmount().longValue())
                     .description("Thanh toan khoa hoc")
-                    .returnUrl("https://localhost:81/success")
-                    .cancelUrl("https://localhost:81/cancel")
+                    .returnUrl("https://localhost:8080/success")
+                    .cancelUrl("https://localhost:8080/cancel")
                     .build();
 
             CreatePaymentLinkResponse data = payOS.paymentRequests().create(paymentData);
@@ -180,6 +183,24 @@ public class PaymentServiceImpl implements PaymentService {
             }
 
             paymentRepository.save(payment);
+
+            // Gửi thông báo cho học viên
+            try {
+                NotificationRequest notifReq = new NotificationRequest();
+                // PHẢI dùng User.id (users.id) chứ KHÔNG PHẢI Student.studentId
+                // vì Notification.userId lưu theo users.id
+                int targetUserId = payment.getStudent().getUser().getId();
+                notifReq.setTargetUserId(targetUserId);
+                notifReq.setTitle("Thanh toán khóa học thành công");
+                notifReq.setMessage("Bạn đã thanh toán thành công khóa học: " + payment.getCourse().getTitle());
+                notifReq.setLink("course://" + payment.getCourse().getCourseId());
+                notifReq.setType("PAYMENT");
+                notificationService.createNotification(notifReq);
+                System.out.println("===> ĐÃ TẠO THÔNG BÁO THANH TOÁN cho userId: " + targetUserId);
+            } catch (Exception e) {
+                System.err.println("Lỗi gửi thông báo thanh toán: " + e.getMessage());
+                e.printStackTrace();
+            }
 
             return PaymentWebhookResponse.builder()
                     .paymentId(payment.getPaymentId())

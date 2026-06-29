@@ -33,6 +33,7 @@ public class CourseServiceImpl implements CourseService {
     private final CourseContentService courseContentService;
     private final CourseReviewServiceImpl courseReviewService;
     private final SecurityUtil securityUtil;
+    private final com.example.lms_api.repository.EnrollmentRepository enrollmentRepository;
 
 
     // ── Tạo mới ──────────────────────────────────────────────
@@ -61,9 +62,26 @@ public class CourseServiceImpl implements CourseService {
     // ── Lấy tất cả (chưa xoá, đang active) ──────────────────
     @Override
     public List<CourseResponse> getAllActiveCourses() {
+        Integer studentId = null;
+        try {
+            studentId = securityUtil.getCurrentStudentId();
+        } catch (Exception ignored) {}
+
+        final Integer currentStudentId = studentId;
+
         return courseRepository.findByIsDeletedFalseAndIsActiveTrue()
                 .stream()
-                .map(courseMapper::toResponse)     // ← dùng mapper
+                .map(course -> {
+                    CourseResponse response = courseMapper.toResponse(course);
+                    if (currentStudentId != null) {
+                        boolean isEnrolled = enrollmentRepository.existsByCourse_CourseIdAndStudent_StudentIdAndAccessStatus(
+                                course.getCourseId(), currentStudentId, "Active");
+                        response.setPurchased(isEnrolled);
+                    } else {
+                        response.setPurchased(false);
+                    }
+                    return response;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -149,6 +167,20 @@ public class CourseServiceImpl implements CourseService {
             response.setTotalLessons(totalLessons);
             Double rating = courseReviewService.getAverageRating(p.getCourseId());
             response.setAverageRating(rating);
+
+            Integer studentId = null;
+            try {
+                studentId = securityUtil.getCurrentStudentId();
+            } catch (Exception ignored) {}
+
+            if (studentId != null) {
+                boolean isEnrolled = enrollmentRepository.existsByCourse_CourseIdAndStudent_StudentIdAndAccessStatus(
+                        p.getCourseId(), studentId, "Active");
+                response.setPurchased(isEnrolled);
+            } else {
+                response.setPurchased(false);
+            }
+
             return response;
         }).collect(Collectors.toList());
     }
@@ -174,6 +206,20 @@ public class CourseServiceImpl implements CourseService {
             response.setTotalLessons(totalLessons);
             Double rating = courseReviewService.getAverageRating(p.getCourseId());
             response.setAverageRating(rating);
+
+            Integer studentId = null;
+            try {
+                studentId = securityUtil.getCurrentStudentId();
+            } catch (Exception ignored) {}
+
+            if (studentId != null) {
+                boolean isEnrolled = enrollmentRepository.existsByCourse_CourseIdAndStudent_StudentIdAndAccessStatus(
+                        p.getCourseId(), studentId, "Active");
+                response.setPurchased(isEnrolled);
+            } else {
+                response.setPurchased(false);
+            }
+
             return response;
         }).collect(Collectors.toList());
     }
