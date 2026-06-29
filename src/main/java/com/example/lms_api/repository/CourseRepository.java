@@ -22,6 +22,8 @@ public interface CourseRepository extends JpaRepository<Course, Integer> {
 
     List<Course> findByTeacher_TeacherIdOrderByCreatedAtDesc(Integer teacherId);
     long countByTeacher_TeacherId(Integer teacherId);
+    
+    boolean existsByTitleAndTeacher_TeacherId(String title, Integer teacherId);
 
     @Query(value = """
             SELECT 

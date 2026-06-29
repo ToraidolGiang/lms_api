@@ -7,6 +7,8 @@ import com.example.lms_api.dto.response.dashboard.TeacherOverviewResponse;
 import com.example.lms_api.dto.response.dashboard.TeacherTaskResponse;
 import com.example.lms_api.dto.response.dashboard.WeeklyActivityResponse;
 
+import com.example.lms_api.dto.response.PagedResponse;
+
 import java.util.List;
 
 public interface TeacherDashboardService {
@@ -52,6 +54,26 @@ public interface TeacherDashboardService {
      * @param limit  số lượng tối đa mỗi nguồn (mặc định 5)
      */
     List<RecentActivityResponse> getRecentActivities(Integer userId, int limit);
+
+    /**
+     * GET /api/teacher-dashboard/recent-activities?page=0&size=8
+     *
+     * Phân trang hoạt động gần đây.
+     *
+     * @param userId userId từ JWT
+     * @param page   trang hiện tại (0-indexed)
+     * @param size   số bản ghi mỗi trang (mặc định 8)
+     */
+    PagedResponse<RecentActivityResponse> getRecentActivitiesPaged(Integer userId, int page, int size);
+
+    /**
+     * Phân trang danh sách khoá học của teacher.
+     *
+     * @param userId userId từ JWT
+     * @param page   trang hiện tại (0-indexed)
+     * @param size   số bản ghi mỗi trang (mặc định 8)
+     */
+    PagedResponse<CourseResponse> getMyCoursesPaged(Integer userId, int page, int size);
 
     /**
      * GET /api/teacher-dashboard/weekly-activity
