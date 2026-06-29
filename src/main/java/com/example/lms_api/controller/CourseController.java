@@ -1,4 +1,5 @@
 package com.example.lms_api.controller;
+import jakarta.validation.Valid;
 import com.example.lms_api.dto.request.CourseRequest;
 import com.example.lms_api.dto.response.CourseResponse;
 import com.example.lms_api.dto.response.PagedResponse;
@@ -19,7 +20,7 @@ public class CourseController {
 
     // 1. [POST] Tạo khóa học mới
     @PostMapping
-    public ResponseEntity<CourseResponse> createCourse(@RequestBody CourseRequest request) {
+    public ResponseEntity<CourseResponse> createCourse(@Valid @RequestBody CourseRequest request) {
         return new ResponseEntity<>(courseService.createCourse(request), HttpStatus.CREATED);
     }
 
@@ -41,7 +42,7 @@ public class CourseController {
     }
     // 4. [PUT] Cập nhật thông tin khóa học
     @PutMapping("/{id}")
-    public ResponseEntity<CourseResponse> updateCourse(@PathVariable Integer id, @RequestBody CourseRequest request) {
+    public ResponseEntity<CourseResponse> updateCourse(@PathVariable Integer id, @Valid @RequestBody CourseRequest request) {
         return ResponseEntity.ok(courseService.updateCourse(id, request));
     }
 

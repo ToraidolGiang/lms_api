@@ -46,6 +46,11 @@ public class CourseServiceImpl implements CourseService {
         Teacher teacher = teacherRepository.findByTeacherId(request.getTeacherId())
                 .orElseThrow(() -> new RuntimeException("Teacher không tồn tại!"));
 
+        // 1. Kiểm tra trùng tên khóa học
+        if (courseRepository.existsByTitleAndTeacher_TeacherId(request.getTitle(), request.getTeacherId())) {
+            throw new IllegalArgumentException("Bạn đã có một khóa học với tên này rồi");
+        }
+
         // Dùng mapper tạo entity, rồi set các field đặc biệt thủ công
         Course course = courseMapper.toEntity(request);
         course.setCategory(category);
