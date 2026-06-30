@@ -5,12 +5,15 @@ import com.example.lms_api.dto.response.CourseResponse;
 import com.example.lms_api.dto.response.PagedResponse;
 import com.example.lms_api.entity.Category;
 import com.example.lms_api.entity.Course;
+import com.example.lms_api.entity.Enrollment;
+import com.example.lms_api.entity.Notification;
 import com.example.lms_api.entity.Teacher;
 import com.example.lms_api.mapper.CourseMapper;
 import com.example.lms_api.projection.CourseSummaryProjection;
 import com.example.lms_api.repository.CategoryRepository;
 import com.example.lms_api.repository.CourseRepository;
 import com.example.lms_api.repository.CourseReviewRepository;
+import com.example.lms_api.repository.NotificationRepository;
 import com.example.lms_api.repository.TeacherRepository;
 import com.example.lms_api.service.CourseService;
 import com.example.lms_api.util.SecurityUtil;
@@ -21,6 +24,7 @@ import com.example.lms_api.service.CourseContentService;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Arrays;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,6 +39,7 @@ public class CourseServiceImpl implements CourseService {
     private final CourseReviewServiceImpl courseReviewService;
     private final SecurityUtil securityUtil;
     private final com.example.lms_api.repository.EnrollmentRepository enrollmentRepository;
+    private final NotificationRepository notificationRepository;
 
 
     // ── Tạo mới ──────────────────────────────────────────────
@@ -135,22 +140,112 @@ public class CourseServiceImpl implements CourseService {
         Course course = courseRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy khóa học để xóa"));
 
+        if (Boolean.TRUE.equals(course.getIsDeleted())) {
+            throw new RuntimeException("Khóa học đã được xóa trước đó");
+        }
+
+        // 1. Cập nhật trạng thái khóa học
         course.setIsDeleted(true);
         course.setIsActive(false);
         course.setDeletedAt(LocalDateTime.now());
         course.setDeletedBy(deletedBy);
         course.setDeleteReason(reason);
         course.setArchiveStatus("Deleted");
-
         courseRepository.save(course);
+
+        // 2. Cập nhật trạng thái Enrollment cho sinh viên đang Active
+        List<Enrollment> activeEnrollments = enrollmentRepository.findActiveByCourseId(id);
+        for (Enrollment enrollment : activeEnrollments) {
+            if (Boolean.TRUE.equals(enrollment.getCanAccessAfterDeletion())) {
+                enrollment.setAccessStatus("CourseDeleted");
+                enrollment.setAccessExpiryDate(LocalDateTime.now().plusDays(180));
+            } else {
+                enrollment.setAccessStatus("Suspended");
+                enrollment.setAccessExpiryDate(LocalDateTime.now());
+            }
+            enrollmentRepository.save(enrollment);
+        }
+
+        // 3. Gửi thông báo cho tất cả sinh viên đã mua khóa học
+        String courseTitle = course.getTitle();
+        for (Enrollment enrollment : activeEnrollments) {
+            Integer userId = enrollment.getStudent().getUser().getId();
+            Notification notification = Notification.builder()
+                    .userId(userId)
+                    .title("Khóa học đã bị xóa")
+                    .message("Khóa học \"" + courseTitle + "\" đã bị giảng viên gỡ xuống. "
+                            + (Boolean.TRUE.equals(enrollment.getCanAccessAfterDeletion())
+                            ? "Bạn vẫn có thể truy cập trong 180 ngày tới."
+                            : "Quyền truy cập của bạn đã bị tạm ngưng."))
+                    .type("COURSE_DELETED")
+                    .link("/courses/" + id)
+                    .build();
+            notificationRepository.save(notification);
+        }
     }
 
-    // ── Lấy tất cả khóa học theo teacherId ──────────────────
+    // ── Khôi phục khóa học (Restore) ─────────────────────────
+    @Override
+    @Transactional
+    public void restoreCourse(Integer id, String restoredBy) {
+        Course course = courseRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy khóa học để khôi phục"));
+
+        if (Boolean.FALSE.equals(course.getIsDeleted())) {
+            throw new RuntimeException("Khóa học chưa bị xóa, không cần khôi phục");
+        }
+
+        // 1. Khôi phục trạng thái khóa học
+        course.setIsDeleted(false);
+        course.setIsActive(true);
+        course.setDeletedAt(null);
+        course.setDeletedBy(null);
+        course.setDeleteReason(null);
+        course.setArchiveStatus("Active");
+        courseRepository.save(course);
+
+        // 2. Khôi phục trạng thái Enrollment
+        List<Enrollment> suspendedEnrollments = enrollmentRepository
+                .findByCourseIdAndAccessStatusIn(id, Arrays.asList("CourseDeleted", "Suspended"));
+        for (Enrollment enrollment : suspendedEnrollments) {
+            enrollment.setAccessStatus("Active");
+            enrollment.setAccessExpiryDate(null);
+            enrollmentRepository.save(enrollment);
+        }
+
+        // 3. Gửi thông báo cho tất cả sinh viên đã mua
+        String courseTitle = course.getTitle();
+        for (Enrollment enrollment : suspendedEnrollments) {
+            Integer userId = enrollment.getStudent().getUser().getId();
+            Notification notification = Notification.builder()
+                    .userId(userId)
+                    .title("Khóa học đã được khôi phục")
+                    .message("Khóa học \"" + courseTitle + "\" đã được khôi phục và sẵn sàng để học lại. Quyền truy cập của bạn đã được kích hoạt lại!")
+                    .type("COURSE_RESTORED")
+                    .link("/courses/" + id)
+                    .build();
+            notificationRepository.save(notification);
+        }
+    }
+
+    // ── Lấy tất cả khóa học theo teacherId (kể cả đã xóa mềm) ──────────────
     @Override
     public List<CourseResponse> getCourseByTeacherId(Integer teacherId) {
         return courseRepository.findByTeacherTeacherId(teacherId)
                 .stream()
-                .map(courseMapper::toResponse)     // ← dùng mapper
+                .map(course -> {
+                    CourseResponse response = courseMapper.toResponse(course);
+                    // Tính totalLessons thực tế
+                    response.setTotalLessons(courseContentService.getTotalLessons(course.getCourseId()));
+                    // Tính totalStudents thực tế
+                    response.setTotalStudents((int) enrollmentRepository.countByCourseId(course.getCourseId()));
+                    // Tính averageRating thực tế
+                    Double rating = courseReviewService.getAverageRating(course.getCourseId());
+                    response.setAverageRating(rating != null ? rating : 0.0);
+                    // Truyền isDeleted để client biết trạng thái
+                    response.setIsDeleted(course.getIsDeleted());
+                    return response;
+                })
                 .collect(Collectors.toList());
     }
 

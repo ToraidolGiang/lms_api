@@ -8,6 +8,7 @@ import com.example.lms_api.entity.Course;
 import com.example.lms_api.entity.Discussion;
 import com.example.lms_api.entity.Teacher;
 import com.example.lms_api.repository.*;
+import com.example.lms_api.service.CourseContentService;
 import com.example.lms_api.service.TeacherDashboardService;
 import com.example.lms_api.util.TimeAgoUtil;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,8 @@ public class TeacherDashboardServiceImpl implements TeacherDashboardService {
     private final DiscussionRepository  discussionRepository;
     private final TeacherRepository     teacherRepository;
     private final StudentRepository     studentRepository;
+    private final CourseContentService  courseContentService;
+    private final CourseReviewRepository courseReviewRepository;
 
     // ─────────────────────────────────────────────────────────────────────────
     //  (Cũ) getDashboard – giữ nguyên để không break Android đang dùng
@@ -67,10 +70,21 @@ public class TeacherDashboardServiceImpl implements TeacherDashboardService {
     //  (Cũ) getMyCourses
     // ─────────────────────────────────────────────────────────────────────────
     @Override
-    public List<CourseResponse> getMyCourses(Integer userId) {
-        List<Course> courses = courseRepository.findByTeacher_TeacherIdOrderByCreatedAtDesc(userId);
+    public List<CourseResponse> getMyCourses(Integer teacherId) {
+        // Lấy TẤT CẢ khóa học kể cả đã xóa mềm (để giảng viên thấy nút Restore)
+        List<Course> courses = courseRepository.findByTeacher_TeacherIdOrderByCreatedAtDesc(teacherId);
         return courses.stream()
-                .map(this::mapToCourseResponse)
+                .map(course -> {
+                    CourseResponse res = mapToCourseResponse(course);
+                    // Tính totalLessons thực tế
+                    res.setTotalLessons(courseContentService.getTotalLessons(course.getCourseId()));
+                    // Tính totalStudents thực tế
+                    res.setTotalStudents((int) enrollmentRepository.countByCourseId(course.getCourseId()));
+                    // Tính averageRating
+                    Double avg = courseReviewRepository.getAverageRatingByCourseId(course.getCourseId());
+                    res.setAverageRating(avg != null ? avg : 0.0);
+                    return res;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -390,6 +404,7 @@ public class TeacherDashboardServiceImpl implements TeacherDashboardService {
                 .archiveStatus(course.getArchiveStatus())
                 .teacherName(teacherName)
                 .categoryName(categoryName)
+                .isDeleted(course.getIsDeleted())   // ← quan trọng: giữ trạng thái xóa mềm
                 .build();
     }
 

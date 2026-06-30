@@ -26,5 +26,7 @@ public class CourseResponse {
     private double averageRating;
     /** Active | Pending | Suspended | Completed | CourseDeleted (theo Enrollment) */
     private String accessStatus;
+    /** Trạng thái xóa mềm */
+    private Boolean isDeleted;
     // Thống kê theo từng khóa học
 }

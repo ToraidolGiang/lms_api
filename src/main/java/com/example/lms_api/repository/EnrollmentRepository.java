@@ -45,4 +45,14 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Integer>
           AND YEAR(e.enrollDate)  = YEAR(CURRENT_DATE)
     """)
     long countEnrollmentsThisMonth(@Param("teacherId") Integer teacherId);
+
+    // Lấy danh sách enrollment Active của một khóa học (dùng để gửi thông báo)
+    @Query("SELECT e FROM Enrollment e WHERE e.course.courseId = :courseId AND e.accessStatus = 'Active'")
+    java.util.List<Enrollment> findActiveByCourseId(@Param("courseId") Integer courseId);
+
+    // Lấy danh sách enrollment theo khóa học và nhiều trạng thái (dùng khi restore)
+    @Query("SELECT e FROM Enrollment e WHERE e.course.courseId = :courseId AND e.accessStatus IN :statuses")
+    java.util.List<Enrollment> findByCourseIdAndAccessStatusIn(
+            @Param("courseId") Integer courseId,
+            @Param("statuses") java.util.List<String> statuses);
 }
