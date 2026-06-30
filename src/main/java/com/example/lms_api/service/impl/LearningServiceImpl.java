@@ -146,7 +146,7 @@ public class LearningServiceImpl implements LearningService {
         Map<String, String> rawStudentAnswers = request.getStudentAnswers();
         Map<String, String> cleanStudentAnswers = new HashMap<>();
 
-        // 🟢 FIX LỖI GSON: Làm sạch dữ liệu từ Client gửi lên (Xóa đuôi ".0" nếu có)
+        // FIX LỖI GSON: Làm sạch dữ liệu từ Client gửi lên (Xóa đuôi ".0" nếu có)
         if (rawStudentAnswers != null) {
             for (Map.Entry<String, String> entry : rawStudentAnswers.entrySet()) {
                 String cleanKey = entry.getKey().endsWith(".0") ? entry.getKey().replace(".0", "") : entry.getKey();

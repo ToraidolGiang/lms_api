@@ -68,8 +68,13 @@ public class PaymentServiceImpl implements PaymentService {
         Payment saved = paymentRepository.save(payment);
 
         try {
+            String timeString = String.valueOf(System.currentTimeMillis());
+            String prefix = "1" + timeString.substring(timeString.length() - 7);
+            String orderCodeStr = prefix + saved.getPaymentId();
+            long orderCode = Long.parseLong(orderCodeStr);
+
             CreatePaymentLinkRequest paymentData = CreatePaymentLinkRequest.builder()
-                    .orderCode(saved.getPaymentId().longValue())
+                    .orderCode(orderCode)
                     .amount(saved.getAmount().longValue())
                     .description("Thanh toan khoa hoc")
                     .returnUrl("https://localhost:8080/success")
@@ -116,7 +121,13 @@ public class PaymentServiceImpl implements PaymentService {
         }
 
         // Đọc mã giao dịch từ orderCode của PayOS
-        Integer paymentId = verifiedData.getOrderCode().intValue();
+        String orderCodeStr = String.valueOf(verifiedData.getOrderCode());
+        Integer paymentId;
+        if (orderCodeStr.length() > 8 && orderCodeStr.startsWith("1")) {
+            paymentId = Integer.parseInt(orderCodeStr.substring(8));
+        } else {
+            paymentId = verifiedData.getOrderCode().intValue();
+        }
         
         // Sử dụng khóa bi quan (SELECT FOR UPDATE) để đồng bộ đa luồng tránh Race Condition
         Payment payment = paymentRepository.findByIdForUpdate(paymentId).orElse(null);
