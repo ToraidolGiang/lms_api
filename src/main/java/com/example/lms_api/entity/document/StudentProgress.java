@@ -8,8 +8,14 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
+
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 @Document(collection = "student_progress")
+@CompoundIndexes({
+    @CompoundIndex(name = "student_course_idx", def = "{'studentId': 1, 'courseId': 1}")
+})
 public class StudentProgress {
     @Id
     private String id;

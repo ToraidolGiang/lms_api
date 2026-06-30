@@ -7,7 +7,13 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
+
 @Document(collection = "course_reviews")
+@CompoundIndexes({
+    @CompoundIndex(name = "course_created_idx", def = "{'courseId': 1, 'createdAt': -1}")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

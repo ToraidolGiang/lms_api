@@ -10,9 +10,16 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
+
 @Setter
 @Getter
 @Document(collection = "posts")
+@CompoundIndexes({
+    @CompoundIndex(name = "created_idx", def = "{'createdAt': -1}"),
+    @CompoundIndex(name = "category_created_idx", def = "{'category': 1, 'createdAt': -1}")
+})
 public class Post {
 
     @Id

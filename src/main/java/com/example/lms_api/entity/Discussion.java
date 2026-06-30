@@ -9,7 +9,14 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
+
 @Document(collection = "discussions")
+@CompoundIndexes({
+    @CompoundIndex(name = "course_lesson_created_idx", def = "{'courseId': 1, 'lessonId': 1, 'createdAt': -1}"),
+    @CompoundIndex(name = "course_role_created_idx", def = "{'courseId': 1, 'authorRole': 1, 'createdAt': -1}")
+})
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Discussion {
 

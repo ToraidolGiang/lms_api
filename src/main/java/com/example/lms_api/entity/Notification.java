@@ -8,8 +8,14 @@ import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.LocalDateTime;
 
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
+
 // Bỏ @Entity và @Table của JPA đi, dùng @Document của MongoDB
 @Document(collection = "notifications")
+@CompoundIndexes({
+    @CompoundIndex(name = "user_created_idx", def = "{'userId': 1, 'createdAt': -1}")
+})
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Notification { // Nên đổi tên thành NotificationDocument
 
