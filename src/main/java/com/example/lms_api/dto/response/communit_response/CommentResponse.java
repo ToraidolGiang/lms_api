@@ -16,5 +16,6 @@ public class CommentResponse {
     private String userId;
     private String authorName;
     private String content;
+    private String parentCommentId;
     private Instant createdAt;
 }

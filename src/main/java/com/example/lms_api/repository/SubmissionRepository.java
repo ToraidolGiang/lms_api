@@ -38,17 +38,11 @@ public interface SubmissionRepository extends JpaRepository<Submission, String> 
      *   - Đếm submission type='assignment' của những student đó chưa có trong gradebook
      */
     @Query(value = """
-        SELECT COUNT(s.submissionid)
-        FROM submission s
-        WHERE s.type = 'assignment'
-          AND s.studentid IN (
-              SELECT DISTINCT e.student_id
-              FROM enrollment e
-              JOIN courses c ON e.course_id = c.courseid
-              WHERE c.teacherid = :teacherId
-                AND e.access_status = 'Active'
-          )
-          AND s.submissionid NOT IN (SELECT g.submissionid FROM gradebook g)
+      SELECT COUNT(cg.course_gradeid)
+            FROM course_grade cg
+            JOIN courses c ON cg.courseid = c.courseid
+            WHERE cg.is_masked = false
+              AND c.teacherid = :teacherId;
         """, nativeQuery = true)
     long countPendingGradingByTeacherId(@Param("teacherId") Integer teacherId);
 
@@ -136,23 +130,11 @@ public interface SubmissionRepository extends JpaRepository<Submission, String> 
      * Trả về: courseId, courseTitle, pendingCount
      */
     @Query(value = """
-        SELECT c.courseid    AS courseId,
-               c.title       AS courseTitle,
-               COUNT(s.submissionid) AS pendingCount
-        FROM submission s
-        JOIN (
-            SELECT DISTINCT ON (e.student_id) e.student_id, e.course_id
-            FROM enrollment e
-            JOIN courses c2 ON e.course_id = c2.courseid
-            WHERE c2.teacherid = :teacherId
-              AND e.access_status = 'Active'
-            ORDER BY e.student_id, e.enroll_date DESC
-        ) latest_enroll ON s.studentid = latest_enroll.student_id
-        JOIN courses c ON latest_enroll.course_id = c.courseid
-        WHERE s.type = 'assignment'
-          AND s.submissionid NOT IN (SELECT g.submissionid FROM gradebook g)
-        GROUP BY c.courseid, c.title
-        ORDER BY pendingCount DESC
+            SELECT c.courseid, c.title, COUNT(cg.course_gradeid) AS pendingCount
+            FROM courses c
+            LEFT JOIN course_grade cg ON c.courseid = cg.courseid
+            where cg.is_masked = false and c.teacherid = :teacherId
+            GROUP BY c.courseid, c.title;
         """, nativeQuery = true)
     List<Object[]> findPendingGradingGroupedByCourse(@Param("teacherId") Integer teacherId);
     @Query(value = "SELECT * FROM submission WHERE CAST(studentid AS VARCHAR) = CAST(:studentId AS VARCHAR) AND aqid = :aqId", nativeQuery = true)

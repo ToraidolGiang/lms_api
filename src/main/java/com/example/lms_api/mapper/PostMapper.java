@@ -13,7 +13,7 @@ import java.util.List;
 @Component
 public class PostMapper {
 
-    public PostResponse toResponse(Post post) {
+    public PostResponse toResponse(Post post, String currentUserId) {
         if (post == null) return null;
 
         int likesCount = post.getLikes() == null ? 0 : post.getLikes().size();
@@ -29,7 +29,7 @@ public class PostMapper {
             category = post.getType();
         }
 
-        // 🌟 SỬA ĐOẠN NÀY: Dùng các hàm Set thay vì Constructor dài dòng
+        //
         PostResponse response = new PostResponse();
         response.setId(post.getId());
         response.setTitle(title);
@@ -46,11 +46,16 @@ public class PostMapper {
         response.setAuthorRole(post.getAuthorRole());
         response.setTags(post.getTags()); // 🌟 Đưa mảng tags thực tế từ MongoDB sang DTO thành công!
 
+        boolean likedByMe = currentUserId != null
+                && post.getLikes() != null
+                && post.getLikes().contains(currentUserId);
+        response.setLikedByMe(likedByMe);
+
         return response;
     }
 
     public PostDetailResponse toDetailResponse(Post post, String currentUserId) {
-        PostResponse base = toResponse(post);
+        PostResponse base = toResponse(post, currentUserId);
         if (base == null) return null;
 
         PostDetailResponse detail = new PostDetailResponse();
@@ -84,6 +89,7 @@ public class PostMapper {
                         c.getUserId(),
                         c.getAuthorName(),
                         c.getContent(),
+                        c.getParentCommentId(),
                         c.getCreatedAt()
                 ));
             }

@@ -1,6 +1,8 @@
 package com.example.lms_api.controller;
+import jakarta.validation.Valid;
 import com.example.lms_api.dto.request.CourseRequest;
 import com.example.lms_api.dto.response.CourseResponse;
+import com.example.lms_api.dto.response.PagedResponse;
 import com.example.lms_api.service.CourseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,7 +20,7 @@ public class CourseController {
 
     // 1. [POST] Tạo khóa học mới
     @PostMapping
-    public ResponseEntity<CourseResponse> createCourse(@RequestBody CourseRequest request) {
+    public ResponseEntity<CourseResponse> createCourse(@Valid @RequestBody CourseRequest request) {
         return new ResponseEntity<>(courseService.createCourse(request), HttpStatus.CREATED);
     }
 
@@ -40,7 +42,7 @@ public class CourseController {
     }
     // 4. [PUT] Cập nhật thông tin khóa học
     @PutMapping("/{id}")
-    public ResponseEntity<CourseResponse> updateCourse(@PathVariable Integer id, @RequestBody CourseRequest request) {
+    public ResponseEntity<CourseResponse> updateCourse(@PathVariable Integer id, @Valid @RequestBody CourseRequest request) {
         return ResponseEntity.ok(courseService.updateCourse(id, request));
     }
 
@@ -57,5 +59,42 @@ public class CourseController {
     @GetMapping("/explore")
     public ResponseEntity<List<CourseResponse>> getExploreCourses() {
         return ResponseEntity.ok(courseService.getExploreCourses());
+    }
+
+    @GetMapping("/explore/me")
+    public ResponseEntity<List<CourseResponse>> getExploreCoursesTea() {
+        return ResponseEntity.ok(courseService.getExploreCoursesTea());
+    }
+
+    /**
+     * GET /api/v1/courses/explore/paged?page=0&size=8
+     * Phân trang danh sách khoá học explore (student).
+     */
+    @GetMapping("/explore/paged")
+    public ResponseEntity<PagedResponse<CourseResponse>> getExploreCoursesPagedStudent(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "8") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String price,
+            @RequestParam(required = false) String rating) {
+        if (size > 50) size = 50;
+        return ResponseEntity.ok(courseService.getExploreCoursesPagedStudent(page, size, search, category, price, rating));
+    }
+
+    /**
+     * GET /api/v1/courses/explore/me/paged?page=0&size=8
+     * Phân trang danh sách khoá học explore (teacher).
+     */
+    @GetMapping("/explore/me/paged")
+    public ResponseEntity<PagedResponse<CourseResponse>> getExploreCoursesPagedTeacher(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "8") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String price,
+            @RequestParam(required = false) String rating) {
+        if (size > 50) size = 50;
+        return ResponseEntity.ok(courseService.getExploreCoursesPagedTeacher(page, size, search, category, price, rating));
     }
 }

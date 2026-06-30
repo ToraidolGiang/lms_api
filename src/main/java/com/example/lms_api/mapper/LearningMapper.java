@@ -22,6 +22,8 @@ public class LearningMapper {
                                 .status(lp.getStatus())
                                 .progressPercent(lp.getProgressPercent())
                                 .score(lp.getScore())
+                                .attemptCount(lp.getAttemptCount())
+                                .maxAttempts(lp.getMaxAttempts())
                                 .build())
                         .collect(Collectors.toList()))
                 .build();

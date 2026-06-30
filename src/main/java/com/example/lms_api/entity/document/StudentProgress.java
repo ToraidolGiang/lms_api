@@ -39,6 +39,8 @@ public class StudentProgress {
         private Double progressPercent;
         private Integer score; // Dành cho Quiz
         private String submissionUrl; // Dành cho Assignment
+        private Integer attemptCount;
+        private Integer maxAttempts;
         private LocalDateTime lastAccessedAt;
         private LocalDateTime completedAt;
     }

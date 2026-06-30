@@ -250,6 +250,9 @@ public class LearningServiceImpl implements LearningService {
         StudentProgress progress = getOrCreateProgress(studentId, courseId);
         StudentProgress.LessonProgressData lessonData = getOrCreateLessonProgress(progress, lessonId, 0);
 
+        lessonData.setAttemptCount(currentAttempt);
+        lessonData.setMaxAttempts(5);
+
         if (isHigherScore) {
             lessonData.setScore(finalScore);
             if (isPassed) {
@@ -497,14 +500,15 @@ public class LearningServiceImpl implements LearningService {
         if (courseContent == null) return;
 
         int totalLessons = 0;
-        if (courseContent.getMetadata() != null && courseContent.getMetadata().getTotalLessons() > 0) {
-            totalLessons = courseContent.getMetadata().getTotalLessons();
-        } else if (courseContent.getModules() != null) {
-            // Fallback: Đếm trực tiếp từ danh sách các bài học trong Modules
+        if (courseContent.getModules() != null) {
+            // Luôn ưu tiên đếm trực tiếp từ danh sách các bài học trong Modules để chính xác tuyệt đối
             totalLessons = courseContent.getModules().stream()
                     .filter(m -> m.getLessons() != null)
                     .mapToInt(m -> m.getLessons().size())
                     .sum();
+        } else if (courseContent.getMetadata() != null && courseContent.getMetadata().getTotalLessons() > 0) {
+            // Fallback: Lấy từ metadata nếu modules rỗng
+            totalLessons = courseContent.getMetadata().getTotalLessons();
         }
 
         if (totalLessons > 0) {

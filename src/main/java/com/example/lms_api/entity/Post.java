@@ -45,8 +45,7 @@ public class Post {
     @Field("updatedAt")
     private Instant updatedAt;
 
-    // 🌟 SỬA DÒNG NÀY: Đổi từ "isPinned" thành "pinned" để đồng bộ tuyệt đối với PostResponse và Front-End
-    private boolean pinned = false;
+
 
     public Post() {
     }
