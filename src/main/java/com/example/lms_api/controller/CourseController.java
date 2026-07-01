@@ -56,6 +56,15 @@ public class CourseController {
         return ResponseEntity.ok("Xóa mềm khóa học thành công!");
     }
 
+    // 6. [PATCH] Khôi phục khóa học đã xóa mềm
+    @PatchMapping("/{id}/restore")
+    public ResponseEntity<String> restoreCourse(
+            @PathVariable Integer id,
+            @RequestParam(defaultValue = "Admin") String restoredBy) {
+        courseService.restoreCourse(id, restoredBy);
+        return ResponseEntity.ok("Khôi phục khóa học thành công!");
+    }
+
     @GetMapping("/explore")
     public ResponseEntity<List<CourseResponse>> getExploreCourses() {
         return ResponseEntity.ok(courseService.getExploreCourses());

@@ -5,12 +5,16 @@ import com.example.lms_api.dto.response.CourseResponse;
 import com.example.lms_api.dto.response.PagedResponse;
 import com.example.lms_api.entity.Category;
 import com.example.lms_api.entity.Course;
+import com.example.lms_api.entity.Enrollment;
+import com.example.lms_api.entity.Notification;
 import com.example.lms_api.entity.Teacher;
 import com.example.lms_api.mapper.CourseMapper;
 import com.example.lms_api.projection.CourseSummaryProjection;
 import com.example.lms_api.repository.CategoryRepository;
 import com.example.lms_api.repository.CourseRepository;
 import com.example.lms_api.repository.CourseReviewRepository;
+import com.example.lms_api.repository.EnrollmentRepository;
+import com.example.lms_api.repository.NotificationRepository;
 import com.example.lms_api.repository.TeacherRepository;
 import com.example.lms_api.service.CourseService;
 import com.example.lms_api.util.SecurityUtil;
@@ -34,7 +38,8 @@ public class CourseServiceImpl implements CourseService {
     private final CourseContentService courseContentService;
     private final CourseReviewServiceImpl courseReviewService;
     private final SecurityUtil securityUtil;
-    private final com.example.lms_api.repository.EnrollmentRepository enrollmentRepository;
+    private final EnrollmentRepository enrollmentRepository;
+    private final NotificationRepository notificationRepository;
 
 
     // ── Tạo mới ──────────────────────────────────────────────
@@ -98,7 +103,23 @@ public class CourseServiceImpl implements CourseService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy khóa học với ID: " + id));
 
         if (Boolean.TRUE.equals(course.getIsDeleted())) {
-            throw new RuntimeException("Khóa học này đã bị xóa!");
+            boolean canAccess = false;
+            try {
+                org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                if (auth != null && auth.isAuthenticated() && !auth.getPrincipal().equals("anonymousUser")) {
+                    Integer userId = Integer.parseInt(auth.getName());
+                    if (course.getTeacher() != null && course.getTeacher().getUser() != null && course.getTeacher().getUser().getId().equals(userId)) {
+                        canAccess = true; // Giảng viên của khóa học
+                    } else if (enrollmentRepository.existsByCourse_CourseIdAndStudent_User_Id(course.getCourseId(), userId)) {
+                        canAccess = true; // Sinh viên đã đăng ký
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+
+            if (!canAccess) {
+                throw new RuntimeException("Khóa học này đã bị xóa!");
+            }
         }
 
         Teacher teacher = teacherRepository.findByTeacherId(course.getTeacher().getTeacherId())
@@ -128,21 +149,97 @@ public class CourseServiceImpl implements CourseService {
         return courseMapper.toResponse(courseRepository.save(course));
     }
 
-    // ── Xoá mềm (Soft Delete) ────────────────────────────────
+    // ── Xoá mềm (Soft Delete) + Cập nhật Enrollment + Thông báo
     @Override
     @Transactional
     public void deleteCourse(Integer id, String deletedBy, String reason) {
         Course course = courseRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy khóa học để xóa"));
 
+        if (Boolean.TRUE.equals(course.getIsDeleted())) {
+            throw new RuntimeException("Khóa học đã được xóa trước đó");
+        }
+
+        // 1. Cập nhật trạng thái khóa học
         course.setIsDeleted(true);
         course.setIsActive(false);
         course.setDeletedAt(LocalDateTime.now());
         course.setDeletedBy(deletedBy);
         course.setDeleteReason(reason);
         course.setArchiveStatus("Deleted");
-
         courseRepository.save(course);
+
+        // 2. Cập nhật trạng thái Enrollment (giống stored procedure)
+        List<Enrollment> activeEnrollments = enrollmentRepository
+                .findByCourse_CourseIdAndAccessStatus(id, "Active");
+
+        for (Enrollment enrollment : activeEnrollments) {
+            if (Boolean.TRUE.equals(enrollment.getCanAccessAfterDeletion())) {
+                enrollment.setAccessStatus("Active");
+                enrollment.setAccessExpiryDate(LocalDateTime.now().plusDays(180));
+            } else {
+                enrollment.setAccessStatus("Suspended");
+                enrollment.setAccessExpiryDate(LocalDateTime.now());
+            }
+            enrollmentRepository.save(enrollment);
+
+            // 3. Gửi thông báo cho từng sinh viên qua MongoDB
+            Integer userId = enrollment.getStudent().getUser().getId();
+            String accessNote = Boolean.TRUE.equals(enrollment.getCanAccessAfterDeletion())
+                    ? " Bạn vẫn có thể truy cập trong 180 ngày."
+                    : " Quyền truy cập của bạn đã bị tạm dừng.";
+
+            Notification notification = Notification.builder()
+                    .userId(userId)
+                    .title("Khóa học bị xóa")
+                    .message("Khóa học \"" + course.getTitle() + "\" đã bị xóa bởi giảng viên." + accessNote)
+                    .type("COURSE_DELETED")
+                    .link("/courses/" + id)
+                    .build();
+            notificationRepository.save(notification);
+        }
+    }
+
+    // ── Khôi phục khóa học (Restore) + Cập nhật Enrollment + Thông báo
+    @Override
+    @Transactional
+    public void restoreCourse(Integer id, String restoredBy) {
+        Course course = courseRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy khóa học để khôi phục"));
+
+        if (Boolean.FALSE.equals(course.getIsDeleted())) {
+            throw new RuntimeException("Khóa học chưa bị xóa");
+        }
+
+        // 1. Khôi phục khóa học
+        course.setIsDeleted(false);
+        course.setIsActive(true);
+        course.setDeletedAt(null);
+        course.setDeletedBy(null);
+        course.setDeleteReason(null);
+        course.setArchiveStatus("Active");
+        courseRepository.save(course);
+
+        // 2. Khôi phục trạng thái Enrollment
+        List<Enrollment> suspendedEnrollments = enrollmentRepository
+                .findSuspendedEnrollmentsByCourseId(id);
+
+        for (Enrollment enrollment : suspendedEnrollments) {
+            enrollment.setAccessStatus("Active");
+            enrollment.setAccessExpiryDate(null);
+            enrollmentRepository.save(enrollment);
+
+            // 3. Gửi thông báo cho từng sinh viên qua MongoDB
+            Integer userId = enrollment.getStudent().getUser().getId();
+            Notification notification = Notification.builder()
+                    .userId(userId)
+                    .title("Khóa học đã được khôi phục")
+                    .message("Khóa học \"" + course.getTitle() + "\" đã được khôi phục. Bạn có thể tiếp tục học ngay bây giờ!")
+                    .type("COURSE_RESTORED")
+                    .link("/courses/" + id)
+                    .build();
+            notificationRepository.save(notification);
+        }
     }
 
     // ── Lấy tất cả khóa học theo teacherId ──────────────────

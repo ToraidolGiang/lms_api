@@ -74,6 +74,33 @@ public interface CourseRepository extends JpaRepository<Course, Integer> {
                     GROUP BY course_id
                 ) e ON c.courseid = e.course_id
             WHERE 
+                (c.is_active = true AND (c.is_deleted = false OR c.is_deleted IS NULL))
+                OR (c.courseid IN (SELECT course_id FROM enrollment WHERE student_id = :studentId))
+            """, nativeQuery = true)
+    List<CourseSummaryProjection> getExploreCoursesForStudent(@org.springframework.data.repository.query.Param("studentId") Integer studentId);
+
+    @Query(value = """
+            SELECT 
+                c.courseid AS courseId,
+                c.title AS courseTitle,
+                c.price AS price,
+                c.image_url AS imageUrl,
+                cat.category_name AS categoryName,
+                CONCAT(t.last_name, ' ', t.first_name) AS teacherName,
+                COALESCE(e.total_students, 0) AS totalStudents
+            FROM 
+                courses c
+            LEFT JOIN 
+                teacher t ON c.teacherid = t.teacherid
+            LEFT JOIN 
+                category cat ON c.categoryid = cat.categoryid
+            LEFT JOIN 
+                (
+                    SELECT course_id, COUNT(DISTINCT student_id) AS total_students
+                    FROM enrollment
+                    GROUP BY course_id
+                ) e ON c.courseid = e.course_id
+            WHERE 
                 c.is_active = true 
                 AND (c.is_deleted = false OR c.is_deleted IS NULL)
                 AND c.teacherid = :teacherId

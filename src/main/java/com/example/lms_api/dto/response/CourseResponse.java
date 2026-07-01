@@ -20,6 +20,9 @@ public class CourseResponse {
     private String categoryName;
     /** User hiện tại đã mua/được kích hoạt khóa học hay chưa */
     private Boolean purchased;
+    
+    /** Đánh dấu xem khóa học có đang bị xóa mềm hay không */
+    private Boolean isDeleted;
 
     private Integer totalStudents;
     private Integer totalLessons;
