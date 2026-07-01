@@ -390,6 +390,7 @@ public class TeacherDashboardServiceImpl implements TeacherDashboardService {
                 .archiveStatus(course.getArchiveStatus())
                 .teacherName(teacherName)
                 .categoryName(categoryName)
+                .isDeleted(course.getIsDeleted())
                 .build();
     }
 
